@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".MapsActivity"
+        android:orientation="vertical">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <Spinner
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/spinner">
+            </Spinner>
+            <Spinner
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/cameraSpinner">
+            </Spinner>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Estimated Flight Time: 0:00"
+                android:id="@+id/estimated_flight_time"
+                android:textSize="16sp"
+                android:padding="8dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Estimated # Photos: 0"
+                android:id="@+id/estimated_number_of_photos"
+                android:textSize="16sp"
+                android:padding="8dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Total area: 0 acres"
+                android:id="@+id/total_area"
+                android:textSize="16sp"
+                android:padding="8dp"/>
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/goFly"
+                android:text="Go Fly"
+                android:onClick="goFlyActivity"
+                android:padding="8dp"/>
+        </LinearLayout>
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Plan Name:"
+            android:textSize="16sp"
+            android:padding="8dp"/>
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/editText"
+            android:inputType="text"
+            android:imeOptions="actionDone"
+            android:padding="8dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Overlap: "
+            android:textSize="16sp"
+            android:padding="8dp"/>
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/overlap"
+            android:inputType="numberDecimal"
+            android:imeOptions="actionDone"
+            android:padding="8dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sidelap: "
+            android:textSize="16sp"
+            android:padding="8dp"/>
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/sidelap"
+            android:inputType="numberDecimal"
+            android:imeOptions="actionDone"
+            android:padding="8dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Altitude: "
+            android:textSize="16sp"
+            android:padding="8dp"/>
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="numberDecimal"
+            android:imeOptions="actionDone"
+            android:id="@+id/altitude"
+            android:padding="8dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Speed: "
+            android:textSize="16sp"
+            android:padding="8dp"/>
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="numberDecimal"
+            android:imeOptions="actionDone"
+            android:id="@+id/flightSpeed"
+            android:padding="8dp"/>
+    </LinearLayout>
+
+        <fragment xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools"
+            android:id="@+id/map"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:context=".MapsActivity" />
+    </LinearLayout>
