@@ -130,9 +130,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d("plansDir", "Plans directory already exists");
         }
 
-
-        // Test commenting
-
         final EditText editText = findViewById(R.id.editText);
         editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
