@@ -72,7 +72,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     LinkedList<Marker> markerLinkedList = new LinkedList<>();
 
     LinkedList<Integer> removedMarkerList = new LinkedList<>();
-    
+
     String fileName = null;
 
     FileWriter fileWriter;
