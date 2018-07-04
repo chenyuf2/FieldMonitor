@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">FieldMonitoringv2</string>
+    <string name="title_activity_maps">Map</string>
+    <string-array name="plans">
+        <item>
+            Choose an Option
+        </item>
+        <item>
+            Open Plans
+        </item>
+        <item>
+            Save Plan
+        </item>
+        <item>
+            Clear Map
+        </item>
+    </string-array>
+    <string name="title_activity_gcs_3_dr_">GCS_3DR_Activity</string>
+</resources>
