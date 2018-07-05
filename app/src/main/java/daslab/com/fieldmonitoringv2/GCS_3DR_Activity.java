@@ -19,10 +19,6 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.MAVLink.MAVLinkPacket;
-import com.MAVLink.Messages.MAVLinkMessage;
-import com.MAVLink.enums.GOPRO_MODEL;
-import com.MAVLink.enums.MAV_CMD;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -32,55 +28,31 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.o3dr.android.client.ControlTower;
 import com.o3dr.android.client.Drone;
-import com.o3dr.android.client.MavlinkObserver;
-import com.o3dr.android.client.apis.CalibrationApi;
 import com.o3dr.android.client.apis.ControlApi;
-import com.o3dr.android.client.apis.ExperimentalApi;
 import com.o3dr.android.client.apis.GimbalApi;
 import com.o3dr.android.client.apis.MissionApi;
 import com.o3dr.android.client.apis.VehicleApi;
 import com.o3dr.android.client.apis.solo.SoloCameraApi;
 import com.o3dr.android.client.interfaces.DroneListener;
 import com.o3dr.android.client.interfaces.TowerListener;
-import com.o3dr.android.client.utils.FileUtils;
-import com.o3dr.android.client.utils.data.tlog.TLogParser;
 import com.o3dr.services.android.lib.coordinate.LatLong;
 import com.o3dr.services.android.lib.coordinate.LatLongAlt;
-import com.o3dr.services.android.lib.drone.action.ControlActions;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
-import com.o3dr.services.android.lib.drone.attribute.AttributeEventExtra;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
-import com.o3dr.services.android.lib.drone.attribute.error.ErrorType;
-import com.o3dr.services.android.lib.drone.companion.solo.SoloAttributes;
-import com.o3dr.services.android.lib.drone.companion.solo.SoloState;
-import com.o3dr.services.android.lib.drone.companion.solo.tlv.SoloGoproConstants;
-import com.o3dr.services.android.lib.drone.companion.solo.tlv.SoloGoproRequestState;
-import com.o3dr.services.android.lib.drone.companion.solo.tlv.SoloGoproSetExtendedRequest;
-import com.o3dr.services.android.lib.drone.companion.solo.tlv.SoloGoproSetRequest;
-import com.o3dr.services.android.lib.drone.companion.solo.tlv.SoloGoproState;
-import com.o3dr.services.android.lib.drone.companion.solo.tlv.TLVPacket;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
 import com.o3dr.services.android.lib.drone.mission.Mission;
-import com.o3dr.services.android.lib.drone.mission.item.MissionItem;
-import com.o3dr.services.android.lib.drone.mission.item.command.CameraTrigger;
 import com.o3dr.services.android.lib.drone.mission.item.command.ChangeSpeed;
-import com.o3dr.services.android.lib.drone.mission.item.command.ReturnToLaunch;
 import com.o3dr.services.android.lib.drone.mission.item.command.YawCondition;
-import com.o3dr.services.android.lib.drone.mission.item.complex.Survey;
 import com.o3dr.services.android.lib.drone.mission.item.spatial.Land;
-import com.o3dr.services.android.lib.drone.mission.item.spatial.RegionOfInterest;
 import com.o3dr.services.android.lib.drone.mission.item.spatial.Waypoint;
 import com.o3dr.services.android.lib.drone.property.Altitude;
 import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Battery;
-import com.o3dr.services.android.lib.drone.property.DroneAttribute;
 import com.o3dr.services.android.lib.drone.property.Gps;
 import com.o3dr.services.android.lib.drone.property.Home;
 import com.o3dr.services.android.lib.drone.property.Speed;
@@ -107,7 +79,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     private int droneType = Type.TYPE_COPTER;
     private final Handler handler = new Handler();
 
-    private String videoTag = "testvideotag";
+    private String videoTag = "videoTag";
 
     private Button startVideoStream;
 
@@ -120,13 +92,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     LinkedList<LatLongAlt> latLongAltArrayList = new LinkedList<>();
     LinkedList<Waypoint> waypoints = new LinkedList<>();
 
-    String currentFile = "";
-
     VehicleApi vehicleApi;
-    //MissionApi missionApi;
     ControlApi controlApi;
-
-    boolean hasReachedAltitude = false;
 
     private int vertSize = 0;
     private int horizSize = 0;
@@ -135,14 +102,14 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     Double altitude = 0.0;
 
-    boolean missionStarted = false;
-
     Home droneHome;
 
     double flyHomeBatteryPercentage = 25;
 
     String planName;
 
+
+    // On activity start, create a new drone, control tower, and set the ControlApi
     @Override
     public void onStart() {
         super.onStart();
@@ -152,17 +119,20 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     }
 
+    // On activity stop, disconnect the drone, unregister the drone, and disconnect the tower
     @Override
     public void onStop() {
         super.onStop();
         if (this.drone.isConnected()) {
             this.drone.disconnect();
+            // Updates the drone is connected button
             updateConnectedButton(false);
         }
         this.controlTower.unregisterDrone(this.drone);
         this.controlTower.disconnect();
     }
 
+    // On tower connected, register the drone to the control tower
     @Override
     public void onTowerConnected() {
         drone.unregisterDroneListener(this);
@@ -179,11 +149,17 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate(savedInstanceState);
+        // Forces the tablet into landscape mode
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+
         setContentView(R.layout.activity_gcs_3_dr_);
+
+        // Sets the map fragment
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        // Sets the control tower to this application
         this.controlTower = new ControlTower(getApplicationContext());
         final Button arm = findViewById(R.id.btnArmTakeOff);
         arm.setOnClickListener(new View.OnClickListener() {
@@ -312,6 +288,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         });
     }
 
+    // Initiates the video stream
     private void startVideoStream(Surface videoSurface) {
         SoloCameraApi.getApi(drone).startVideoStream(videoSurface, videoTag, false, new AbstractCommandListener() {
             @Override
@@ -335,6 +312,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         });
     }
 
+    // Saves a bitmap image to the internal storage.
+    // For saving an image from the video stream
     private String saveToInternalStorage(Bitmap bitmapImage, int photoNumber){
         ContextWrapper cw = new ContextWrapper(getApplicationContext());
         // path to /data/data/yourapp/app_data/imageDir
@@ -360,6 +339,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         return directory.getAbsolutePath();
     }
 
+    // Stops the video stream
     private void stopVideoStream() {
         SoloCameraApi.getApi(drone).stopVideoStream(videoTag, new AbstractCommandListener() {
             @Override
@@ -381,7 +361,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         });
     }
 
+    // Sets the mission up
     private void setMission(){
+
         final GimbalApi gimbalApi = GimbalApi.getApi(drone);
         final GimbalApi.GimbalOrientationListener orientationListener = new GimbalApi.GimbalOrientationListener() {
             @Override
@@ -405,6 +387,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             }
         };
         gimbalApi.startGimbalControl(orientationListener);
+        // Sets the gimbal orientation to face directly down
         gimbalApi.updateGimbalOrientation(-90f,0.0f,0.0f,orientationListener);
         Log.d("drone", "Arming drone");
         Mission mission = new Mission();
@@ -444,7 +427,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
         }
         else{
-            circleLinkedList.removeFirst().remove();
+            circleLinkedList.removeFirst();
             circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
         }
     }
@@ -453,49 +436,64 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     public void onDroneEvent( String event, Bundle extras ) {
         switch (event) {
             case AttributeEvent.STATE_CONNECTED:
-                alertUser("Drone Connected");
+                // Once the drone is connected, allows for the arm button to be pressed
                 Button armButton = findViewById(R.id.btnArmTakeOff);
                 armButton.setVisibility(View.VISIBLE);
+                // Updates the connected button
                 updateConnectedButton(this.drone.isConnected());
                 break;
                 
             case AttributeEvent.STATE_DISCONNECTED:
+                // If drone is disconnected, alert the user and update the button
                 alertUser("Drone Disconnected");
                 updateConnectedButton(this.drone.isConnected());
                 break;
+
             case AttributeEvent.ALTITUDE_UPDATED:
+                // Updates the altitude
                 Altitude droneAltitude = this.drone.getAttribute(AttributeType.ALTITUDE);
                 TextView altitudeTextView = findViewById(R.id.currentAltitude);
                 altitudeTextView.setText("Altitude: " + String.format("%3.1f", droneAltitude.getAltitude()) + "meters");
-                if (droneAltitude.getAltitude() - altitude > -1){
+
+                // If the drone is within a .5 meter height of the altitude wanted start the mission
+                if (droneAltitude.getAltitude() - altitude > -.5){
                     startMission();
                 }
                 break;
 
             case AttributeEvent.BATTERY_UPDATED:
+                // Updates the battery left
                 Battery droneBattery = this.drone.getAttribute(AttributeType.BATTERY);
                 TextView droneBatteryTextView = findViewById(R.id.batteryLeft);
                 droneBatteryTextView.setText("Battery: " + Double.toString(droneBattery.getBatteryRemain()) + "%");
+
+                // Warns the user if the drone goes below 30% battery
                 if (droneBattery.getBatteryRemain() < 30.0){
                     alertUser("Your battery is below 30%!");
                 }
+                // TODO: Have the user take control of the drone by disconnecting
                 if (droneBattery.getBatteryRemain() <= flyHomeBatteryPercentage){
                     alertUser("Your battery is below flyHome, please quit the app and take manual control.");
                     drone.disconnect();
                     updateConnectedButton(false);
                 }
                 break;
+
             case AttributeEvent.SPEED_UPDATED:
+                // Updates the speed attribute
                 Speed droneSpeed = this.drone.getAttribute(AttributeType.SPEED);
                 TextView droneSpeedTextView = findViewById(R.id.currentSpeed);
                 droneSpeedTextView.setText("Speed: " + String.format("%3.1f", droneSpeed.getGroundSpeed()) + "m/s");
                 break;
+
             case AttributeEvent.HOME_UPDATED:
+                // Updates the home position
                 droneHome = this.drone.getAttribute(AttributeType.HOME);
                 home.setCoordinate(droneHome.getCoordinate());
                 break;
 
             case AttributeEvent.MISSION_ITEM_UPDATED:
+                // Takes a photo at the mission item and updates the log to show what position the drone is currently in
                 if (numberOfPhotosTaken > 1 && numberOfPhotosTaken < (waypoints.size() + 2)){
                     Bitmap bitmap = videoView.getBitmap();
                     saveToInternalStorage(bitmap, actualPhotosTaken);
@@ -505,6 +503,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                     // TODO: Try to take photo on GoPro and the tablet
 //                    SoloCameraApi soloCameraApi = SoloCameraApi.getApi(this.drone);
 //                    soloCameraApi.takePhoto(null);
+
                     // Log photo position and drone position
                     final double[] droneYaw = { 0.0 };
                     final double[] dronePitch = { 0.0 };
