@@ -358,8 +358,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * installed Google Play services and returned to the app.
      */
 
-    int estimatedFlightTime = 0;
-
     @Override
     public void onMapReady( GoogleMap googleMap ) {
 
@@ -402,24 +400,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setOnMapClickListener(this);
         // Turns the marker click listener on
         mMap.setOnMarkerClickListener(this);
+        // Turns the window click listener on
         mMap.setOnInfoWindowClickListener(this);
+
+        // Makes sure the map contains no points currently
         clearMap();
+
+        // If a plan is opened, this adds the markers to the map
         for (LatLng photoPosition :
                 loadedLatLngs) {
             mMap.addMarker(new MarkerOptions().position(photoPosition));
         }
+
+        // Creates the line between all the points on the map
         polylineList.add(mMap.addPolyline(new PolylineOptions().addAll(loadedLatLngs)));
+
+        // Generates a path between the poins and sees what is the closest point to fly to.
+        // Also sets the # of photos
         if(fileName != null){
             path = new Path();
             fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
                 return;
             }
             fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, new OnSuccessListener<Location>() {
@@ -490,12 +491,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d("totalAreaCamera", Double.toString(specs.totalArea(60.0)));
             if (fileName != null) {
                 Log.d("saving photos", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
-                path = new Path(60.0, overlap, 10.0, specs, fileName, getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
+                path = new Path(sidelap, overlap, speed, specs, fileName, getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
             } else {
-                path = new Path(60.0, overlap, 10.0, specs, "noName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/"));
+                path = new Path(sidelap, overlap, speed, specs, "noName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/"));
             }
             if (currentLocation != null) {
-                path.createPath(polygonList.getFirst(), currentLocation, specs.getHorizontalFOV(20.0), specs.getVerticalFOV(20.0), mMap, build);
+                path.createPath(polygonList.getFirst(), currentLocation, specs.getHorizontalFOV(altitude), specs.getVerticalFOV(altitude), mMap, build);
                 int estimatedFlightTime = path.getEstimatedFlightTime();
                 BigDecimal flightTime = BigDecimal.valueOf(estimatedFlightTime);
                 int[] test = secondsToMinutesSeconds(flightTime);
@@ -631,6 +632,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+
+    // Sends an intent to the goFlyActivity, assuming a filename is in place
     public void goFlyActivity( View view ) {
         Intent GCS_3DR_Activity_Intent = new Intent(MapsActivity.this, GCS_3DR_Activity.class);
         if (fileName == null){
