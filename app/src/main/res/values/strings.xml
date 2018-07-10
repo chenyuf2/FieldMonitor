@@ -16,4 +16,12 @@
         </item>
     </string-array>
     <string name="title_activity_gcs_3_dr_">GCS_3DR_Activity</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="connect">Connect</string>
+    <string name="batteryPercentage" formatted="false">Battery: %1$d\%</string>
+    <string name="droneCurrentSpeed" formatted="false">Speed: %1$d m/s</string>
+    <string name="droneCurrentAltitude" formatted="false">Altitude: %1$d meters</string>
+    <string name="NumberOfPhotos"># of photos: %1$i</string>
+    <string name="estimatedFlightTime">Estimated Flight Time: %1$i:%2$i</string>
+    <string name="totalAcres">Total area: %1$d acres</string>
 </resources>
