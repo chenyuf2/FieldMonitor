@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
@@ -59,6 +60,7 @@ import com.o3dr.services.android.lib.drone.property.Speed;
 import com.o3dr.services.android.lib.drone.property.State;
 import com.o3dr.services.android.lib.drone.property.Type;
 
+import com.o3dr.services.android.lib.drone.property.VehicleMode;
 import com.o3dr.services.android.lib.model.AbstractCommandListener;
 
 import java.io.BufferedReader;
@@ -183,7 +185,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                             Log.d("arming","Timeout while arming");
                         }
                     });
-
                 }
 
             }
@@ -364,6 +365,100 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     // Sets the mission up
     private void setMission(){
 
+//        final GimbalApi gimbalApi = GimbalApi.getApi(drone);
+//        final GimbalApi.GimbalOrientationListener orientationListener = new GimbalApi.GimbalOrientationListener() {
+//            @Override
+//            public void onGimbalOrientationUpdate( GimbalApi.GimbalOrientation orientation ) {
+//                gimbalApi.updateGimbalOrientation(orientation, new GimbalApi.GimbalOrientationListener() {
+//                    @Override
+//                    public void onGimbalOrientationUpdate( GimbalApi.GimbalOrientation orientation ) {
+//                        Log.d("orientation", "Updated");
+//                    }
+//
+//                    @Override
+//                    public void onGimbalOrientationCommandError( int error ) {
+//                        Log.d("orientation", "Error " + error);
+//                    }
+//                });
+//            }
+//
+//            @Override
+//            public void onGimbalOrientationCommandError( int error ) {
+//
+//            }
+//        };
+//        gimbalApi.startGimbalControl(orientationListener);
+//        // Sets the gimbal orientation to face directly down
+//        gimbalApi.updateGimbalOrientation(-90f,0.0f,0.0f,orientationListener);
+        Log.d("drone", "Arming drone");
+        Mission mission = new Mission();
+        ChangeSpeed changeSpeed = new ChangeSpeed();
+        // TODO: Add speed into here
+        changeSpeed.setSpeed(4.0);
+        mission.addMissionItem(0, changeSpeed);
+        YawCondition yawCondition = new YawCondition();
+        yawCondition.setAngle(0.0);
+        mission.addMissionItem(yawCondition);
+        int i = 2;
+        for (Waypoint waypoint1:
+                waypoints) {
+            mission.addMissionItem(i, waypoint1);
+            Log.d("mission", waypoint1.toString());
+            i++;
+
+        }
+        Waypoint home = new Waypoint();
+        droneHome.getCoordinate().setAltitude(0.0);
+        home.setCoordinate(droneHome.getCoordinate());
+        mission.addMissionItem(i, home);
+        i++;
+        Land land = new Land();
+        mission.addMissionItem(i, land);
+        MissionApi missionApi = MissionApi.getApi(drone);
+        missionApi.setMission(mission,true);
+        Log.d("mission", "set mission completed");
+    }
+
+    LinkedList<Circle> circleLinkedList = new LinkedList<>();
+
+    private void updateDronePosition(LatLong currentPos){
+        if (circleLinkedList.size() == 0){
+            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
+        }
+        else{
+            circleLinkedList.removeFirst();
+            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
+        }
+    }
+
+    boolean hasntHappened = true;
+
+    public void setMissionTest(){
+        MissionApi missionApiTest = MissionApi.getApi(drone);
+        Mission mission = new Mission();
+        ChangeSpeed changeSpeed = new ChangeSpeed();
+        changeSpeed.setSpeed(4.0);
+        mission.addMissionItem(changeSpeed);
+        YawCondition yawCondition = new YawCondition();
+        yawCondition.setAngle(0);
+        mission.addMissionItem(yawCondition);
+        int i = 2;
+        for (Waypoint waypoint1:
+                waypoints) {
+            mission.addMissionItem(i, waypoint1);
+            Log.d("mission", waypoint1.toString());
+            i++;
+
+        }
+        Waypoint homeWaypoint = new Waypoint();
+        homeWaypoint.setCoordinate(droneHome.getCoordinate());
+        mission.addMissionItem(homeWaypoint);
+        i++;
+        missionApiTest.setMission(mission,true);
+    }
+
+    public void setGimbal(){
+        Log.d("gimbal", "attempting to start gimbal control");
         final GimbalApi gimbalApi = GimbalApi.getApi(drone);
         final GimbalApi.GimbalOrientationListener orientationListener = new GimbalApi.GimbalOrientationListener() {
             @Override
@@ -389,47 +484,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         gimbalApi.startGimbalControl(orientationListener);
         // Sets the gimbal orientation to face directly down
         gimbalApi.updateGimbalOrientation(-90f,0.0f,0.0f,orientationListener);
-        Log.d("drone", "Arming drone");
-        Mission mission = new Mission();
-        ChangeSpeed changeSpeed = new ChangeSpeed();
-        changeSpeed.setSpeed(4.0);
-        mission.addMissionItem(0, changeSpeed);
-        YawCondition yawCondition = new YawCondition();
-        yawCondition.setAngle(0.0);
-        mission.addMissionItem(yawCondition);
-        int i = 2;
-        for (Waypoint waypointTest :
-                waypoints) {
-            Log.d("waypointtest", waypointTest.toString());
-        }
-        for (Waypoint waypoint1:
-                waypoints) {
-            mission.addMissionItem(i, waypoint1);
-            Log.d("mission", waypoint1.toString());
-            i++;
-
-        }
-        Waypoint home = new Waypoint();
-        droneHome.getCoordinate().setAltitude(0.0);
-        home.setCoordinate(droneHome.getCoordinate());
-        mission.addMissionItem(i, home);
-        i++;
-        Land land = new Land();
-        mission.addMissionItem(i, land);
-        MissionApi missionApi = MissionApi.getApi(drone);
-        missionApi.setMission(mission,true);
-    }
-
-    LinkedList<Circle> circleLinkedList = new LinkedList<>();
-
-    private void updateDronePosition(LatLong currentPos){
-        if (circleLinkedList.size() == 0){
-            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
-        }
-        else{
-            circleLinkedList.removeFirst();
-            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
-        }
     }
 
     @Override
@@ -441,6 +495,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 armButton.setVisibility(View.VISIBLE);
                 // Updates the connected button
                 updateConnectedButton(this.drone.isConnected());
+                setGimbal();
+                setMissionTest();
                 break;
                 
             case AttributeEvent.STATE_DISCONNECTED:
@@ -456,7 +512,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 altitudeTextView.setText("Altitude: " + String.format("%3.1f", droneAltitude.getAltitude()) + "meters");
 
                 // If the drone is within a .5 meter height of the altitude wanted start the mission
-                if (droneAltitude.getAltitude() - altitude > -.5){
+                if (droneAltitude.getAltitude() - altitude > -1 && hasntHappened){
+                    Log.d("starting mission", "attempting");
+                    hasntHappened = false;
                     startMission();
                 }
                 break;
@@ -601,7 +659,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     private void startMission(){
         final MissionApi missionApi = MissionApi.getApi(this.drone);
         missionApi.setMissionSpeed(4.0f,null);
-        missionApi.startMission(true, true, new AbstractCommandListener() {
+        missionApi.startMission(true, false, new AbstractCommandListener() {
             @Override
             public void onSuccess() {
                 Log.d("mission", "Started");
