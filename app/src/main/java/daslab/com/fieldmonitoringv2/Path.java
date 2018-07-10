@@ -1,7 +1,5 @@
 package daslab.com.fieldmonitoringv2;
 
-import android.content.Context;
-import android.content.ContextWrapper;
 import android.util.Log;
 
 import com.google.android.gms.maps.GoogleMap;
@@ -244,20 +242,6 @@ public class Path {
         }
 
         return currentClosestCorner;
-    }
-
-    public void savePath( File directory){
-        Log.d("savedPath",directory.getAbsolutePath());
-        try {
-            if (new File(directory.getAbsolutePath().concat("/settings.txt")).createNewFile()){
-                Log.d("settings", "Settings directory was created");
-            }
-            else{
-                Log.d("settings", "Settings directory not created");
-            }
-        } catch (IOException e) {
-            Log.d("file", "File not created");
-        }
     }
 
 }

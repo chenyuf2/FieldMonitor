@@ -10,14 +10,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import java.util.LinkedList;
 import java.util.List;
 
 class PlanAdapter extends RecyclerView.Adapter<PlanAdapter.PlanViewHolder> {
 
-    List<String> planList = new LinkedList<>();
+    private List<String> planList;
 
-    public PlanAdapter( List<String> plans, Context applicationContext ) {
+    PlanAdapter( List<String> plans, Context applicationContext ) {
         this.planList = plans;
     }
 
