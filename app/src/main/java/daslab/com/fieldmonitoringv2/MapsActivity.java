@@ -2,6 +2,7 @@ package daslab.com.fieldmonitoringv2;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -52,6 +53,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -96,6 +98,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     List<Polyline> polylineList = new LinkedList<>();
 
     cameraSpecs specs = cameraSpecs.GOPRO_HERO4_BLACK;
+
+    boolean planHasBeenSaved = false;
 
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
@@ -179,8 +183,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 try {
                     Number number = numberFormat.parse(overlapText);
                     overlap = number.doubleValue();
-                    if (overlap >= 100.0) {
-                        overlap = 100.0;
+                    if (overlap > 99.0) {
+                        overlap = 99.0;
                     }
                     if (overlap <= 0.0) {
                         overlap = 0.0;
@@ -202,8 +206,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 try {
                     Number number = numberFormat.parse(sidelapText);
                     overlap = number.doubleValue();
-                    if (sidelap >= 100.0) {
-                        sidelap = 100.0;
+                    if (sidelap > 99.0) {
+                        sidelap = 99.0;
                     }
                     if (sidelap <= 0.0) {
                         sidelap = 0.0;
@@ -289,6 +293,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     BigDecimal flightTime = BigDecimal.valueOf(Integer.parseInt(line));
                     int[] intToTime = secondsToMinutesSeconds(flightTime);
                     TextView estimatedFlightTimeTextView = findViewById(R.id.estimated_flight_time);
+                    //TODO: Fix flight time
                     estimatedFlightTimeTextView.setText("Estimated Flight Time: " + intToTime[1] + ":" + intToTime[2]);
                 }
                 if ((line = bufferedReader.readLine()) != null){
@@ -318,7 +323,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         cameraAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         final Spinner cameraSpinner = findViewById(R.id.cameraSpinner);
         cameraSpinner.setAdapter(cameraAdapter);
-        File cameraSpecsFile = new File(getExternalFilesDir(null),"cameraSpecs");
         cameraSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected( AdapterView<?> parent, View view, int position, long id ) {
@@ -412,7 +416,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Creates the line between all the points on the map
         polylineList.add(mMap.addPolyline(new PolylineOptions().addAll(loadedLatLngs)));
 
-        // Generates a path between the poins and sees what is the closest point to fly to.
+        // Generates a path between the points and sees what is the closest point to fly to.
         // Also sets the # of photos
         if(fileName != null){
             path = new Path();
@@ -437,7 +441,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 path.createPath(loadedLatLngs,mMap, currentLocation);
             }
             TextView estimatedPhotos = findViewById(R.id.estimated_number_of_photos);
-            estimatedPhotos.setText("Estimated # of photos: " + path.getNumberOfPhotos());
+            estimatedPhotos.setText("# of photos: " + path.getNumberOfPhotos());
         }
 
     }
@@ -475,11 +479,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             finalBox.add(new LatLng(aNorth, aWest));
             finalBox.add(build.southwest);
             finalBox.add(new LatLng(aSouth, aEast));
+            for (LatLng finalBoxLatLng :
+                    finalBox) {
+                Log.d("lat/lng Box", finalBoxLatLng.toString());
+            }
             Log.d("box", "Box created");
             if (polygonList.isEmpty()) {
                 polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(finalBox).fillColor(Color.argb(75, 255, 102, 102))));
             } else {
-                polygonList.getFirst().remove();
                 polygonList.removeFirst();
 
                 polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(finalBox).fillColor(Color.argb(75, 255, 102, 102))));
@@ -487,7 +494,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d("area", Double.toString(SphericalUtil.computeArea(polygonList.getFirst().getPoints())));
             Log.d("totalAreaCamera", Double.toString(specs.totalArea(60.0)));
             if (fileName != null) {
-                Log.d("saving photos", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
+                Log.d("saving planName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
                 path = new Path(sidelap, overlap, speed, specs, fileName, getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
             } else {
                 path = new Path(sidelap, overlap, speed, specs, "noName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/"));
@@ -568,32 +575,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     builder.show();
                     break;
                 }
-                for (Marker marker :
-                        markerLinkedList) {
-                    Log.d("marker", marker.getPosition().toString());
-                }
-                plan = new Plan(path.getNumberOfPhotos(),planDir.getAbsolutePath(),fileName);
-                plan.markerLinkedList = path.getPhotoWaypoints();
-                if (fileWriter != null){
-                    plan.writeToPlan(fileWriter);
-                }
-                Log.d("planDirPath", planDir.getAbsolutePath());
-                File attributes = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(plan.planName).concat("/attributes.txt"));
-                try {
-                    FileWriter attributeFileWriter = new FileWriter(attributes);
-                    attributeFileWriter.write(path.getEstimatedFlightTime() + "\n");
-                    DecimalFormat df = new DecimalFormat();
-                    df.setMaximumFractionDigits(2);
-                    attributeFileWriter.write(df.format(path.getAcreage()) + "\n");
-                    attributeFileWriter.write(Double.toString(speed) + "\n");
-                    attributeFileWriter.write(Double.toString(altitude) + "\n");
-                    attributeFileWriter.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                savePlan();
                 Log.d("plan", "Saving plan");
                 break;
             case "Open Plans":
+                if (!planHasBeenSaved && (numberOfMarkers > 0)){
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+                    builder.setMessage("Do you want to save your plan before opening a plan?");    //set message
+
+                    builder.setPositiveButton("Save", new DialogInterface.OnClickListener() { //when click on Save
+                        public void onClick(DialogInterface dialog, int which) {
+                            savePlan();
+                            Intent activityOpenPlan = new Intent(MapsActivity.this, activity_open_plan.class);
+                            MapsActivity.this.startActivity(activityOpenPlan);
+                            Log.d("plan", "Opening plan");
+                        }
+                    }).setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {  //not removing items if cancel is done
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            Intent activityOpenPlan = new Intent(MapsActivity.this, activity_open_plan.class);
+                            MapsActivity.this.startActivity(activityOpenPlan);
+                            Log.d("plan", "Opening plan");
+                        }
+                    }).show();  //show alert dialog
+                    break;
+                }
                 Intent activityOpenPlan = new Intent(MapsActivity.this, activity_open_plan.class);
                 MapsActivity.this.startActivity(activityOpenPlan);
                 Log.d("plan", "Opening plan");
@@ -603,32 +609,52 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     break;
             case "Clear Map":
                 clearMap();
+                path = new Path();
                 numberOfMarkers = 0;
-                for (Polygon polygon :
-                        polygonList) {
-                    polygon.remove();
-                }
-                for (Polyline polyline :
-                        polylineList) {
-                    polyline.remove();
-                    fileName = null;
-                    TextView estTimeFlight = findViewById(R.id.estimated_flight_time);
-                    estTimeFlight.setText("Estimated Time: 0");
-                    TextView estPhotos = findViewById(R.id.estimated_number_of_photos);
-                    estPhotos.setText("# of photos: 0");
-                    TextView totalArea = findViewById(R.id.total_area);
-                    totalArea.setText("Total Area: 0 acres");
-                    overlap = 0;
-                    sidelap = 0;
-                }
+                polygonList.clear();
+                polylineList.clear();
+                markerLinkedList.clear();
+                removedMarkerList.clear();
+                fileName = null;
+                TextView estTimeFlight = findViewById(R.id.estimated_flight_time);
+                estTimeFlight.setText("Estimated Time: 0");
+                TextView estPhotos = findViewById(R.id.estimated_number_of_photos);
+                estPhotos.setText("# of photos: 0");
+                TextView totalArea = findViewById(R.id.total_area);
+                totalArea.setText("Total Area: 0 acres");
+                overlap = 0;
+                sidelap = 0;
+                break;
         }
     }
 
     @Override
     public void onNothingSelected( AdapterView<?> parent ) {
-
     }
 
+
+    public void savePlan(){
+        plan = new Plan(path.getNumberOfPhotos(),planDir.getAbsolutePath(),fileName);
+        plan.markerLinkedList = path.getPhotoWaypoints();
+        if (fileWriter != null){
+            plan.writeToPlan(fileWriter);
+        }
+        Log.d("planDirPath", planDir.getAbsolutePath());
+        File attributes = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(plan.planName).concat("/attributes.txt"));
+        try {
+            FileWriter attributeFileWriter = new FileWriter(attributes);
+            attributeFileWriter.write(path.getEstimatedFlightTime() + "\n");
+            DecimalFormat df = new DecimalFormat();
+            df.setMaximumFractionDigits(2);
+            attributeFileWriter.write(df.format(path.getAcreage()) + "\n");
+            attributeFileWriter.write(Double.toString(speed) + "\n");
+            attributeFileWriter.write(Double.toString(altitude) + "\n");
+            attributeFileWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        planHasBeenSaved = true;
+    }
 
     // Sends an intent to the goFlyActivity, assuming a filename is in place
     public void goFlyActivity( View view ) {
@@ -649,6 +675,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             GCS_3DR_Activity_Intent.putExtra("vertSize", path.getVertSize());
         }
         GCS_3DR_Activity_Intent.putExtra("altitude", altitude);
+        GCS_3DR_Activity_Intent.putExtra("speed", speed);
         MapsActivity.this.startActivity(GCS_3DR_Activity_Intent);
     }
 }

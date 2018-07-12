@@ -50,7 +50,6 @@ import com.o3dr.services.android.lib.drone.mission.Mission;
 import com.o3dr.services.android.lib.drone.mission.item.command.ChangeSpeed;
 import com.o3dr.services.android.lib.drone.mission.item.command.ReturnToLaunch;
 import com.o3dr.services.android.lib.drone.mission.item.command.YawCondition;
-import com.o3dr.services.android.lib.drone.mission.item.spatial.Land;
 import com.o3dr.services.android.lib.drone.mission.item.spatial.Waypoint;
 import com.o3dr.services.android.lib.drone.property.Altitude;
 import com.o3dr.services.android.lib.drone.property.Attitude;
@@ -60,7 +59,6 @@ import com.o3dr.services.android.lib.drone.property.Home;
 import com.o3dr.services.android.lib.drone.property.Speed;
 import com.o3dr.services.android.lib.drone.property.State;
 
-import com.o3dr.services.android.lib.drone.property.VehicleMode;
 import com.o3dr.services.android.lib.model.AbstractCommandListener;
 
 import java.io.BufferedReader;
@@ -96,7 +94,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     Waypoint home = new Waypoint();
 
-    Double altitude = 0.0;
+    Double altitude = 30.0;
+    double speed = 5.0;
 
     boolean alertedOnce = false;
 
@@ -106,6 +105,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     // Is set to false once the drone mission has been set, indicating it has happened.
     boolean hasntHappened = true;
+
 
     // On activity start, create a new drone, control tower, and set the ControlApi
     @Override
@@ -197,6 +197,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         if(extras !=null) {
             planName = extras.getString("planName");
             altitude = extras.getDouble("altitude");
+            speed = extras.getDouble("speed");
             Log.d("planName", planName);
             File currentFileWaypoints = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/points.txt"));
             int i = 0;
@@ -369,11 +370,11 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     }
 
     // Sets the Mission
-    public void setMissionTest(){
+    public void setMission(){
         MissionApi missionApiTest = MissionApi.getApi(drone);
         Mission mission = new Mission();
         ChangeSpeed changeSpeed = new ChangeSpeed();
-        changeSpeed.setSpeed(4.0);
+        changeSpeed.setSpeed(speed);
         mission.addMissionItem(changeSpeed);
         YawCondition yawCondition = new YawCondition();
         yawCondition.setAngle(0);
@@ -391,11 +392,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         ReturnToLaunch rtl = new ReturnToLaunch();
         rtl.setReturnAltitude(0.0);
         mission.addMissionItem(rtl);
-//        mission.addMissionItem(homeWaypoint);
         i++;
-//        Land land = new Land();
-//        mission.addMissionItem(land);
-//        i++;
         missionApiTest.setMission(mission,true);
     }
 
@@ -438,7 +435,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 // Updates the connected button
                 updateConnectedButton(this.drone.isConnected());
                 setGimbal();
-                setMissionTest();
+                setMission();
                 break;
                 
             case AttributeEvent.STATE_DISCONNECTED:
@@ -506,7 +503,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             case AttributeEvent.GPS_POSITION:
                 Gps gpsPos = this.drone.getAttribute(AttributeType.GPS);
                 if (gpsPos != null && gpsPos.isValid()){
-                    updateDronePosition(gpsPos.getPosition());
+                    // TODO: Test this feature
+                    mMap.addCircle(new CircleOptions().center(new LatLng(gpsPos.getPosition().getLatitude(),gpsPos.getPosition().getLongitude())).radius(2.0));
+                    //updateDronePosition(gpsPos.getPosition());
                 }
                 break;
 
