@@ -370,7 +370,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     }
 
     // Sets the Mission
-    public void setMissionTest(){
+    public void setMission(){
         MissionApi missionApiTest = MissionApi.getApi(drone);
         Mission mission = new Mission();
         ChangeSpeed changeSpeed = new ChangeSpeed();
@@ -392,11 +392,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         ReturnToLaunch rtl = new ReturnToLaunch();
         rtl.setReturnAltitude(0.0);
         mission.addMissionItem(rtl);
-//        mission.addMissionItem(homeWaypoint);
         i++;
-//        Land land = new Land();
-//        mission.addMissionItem(land);
-//        i++;
         missionApiTest.setMission(mission,true);
     }
 
@@ -439,7 +435,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 // Updates the connected button
                 updateConnectedButton(this.drone.isConnected());
                 setGimbal();
-                setMissionTest();
+                setMission();
                 break;
                 
             case AttributeEvent.STATE_DISCONNECTED:
@@ -507,7 +503,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             case AttributeEvent.GPS_POSITION:
                 Gps gpsPos = this.drone.getAttribute(AttributeType.GPS);
                 if (gpsPos != null && gpsPos.isValid()){
-                    updateDronePosition(gpsPos.getPosition());
+                    // TODO: Test this feature
+                    mMap.addCircle(new CircleOptions().center(new LatLng(gpsPos.getPosition().getLatitude(),gpsPos.getPosition().getLongitude())).radius(2.0));
+                    //updateDronePosition(gpsPos.getPosition());
                 }
                 break;
 

@@ -53,6 +53,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -415,7 +416,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Creates the line between all the points on the map
         polylineList.add(mMap.addPolyline(new PolylineOptions().addAll(loadedLatLngs)));
 
-        // Generates a path between the poins and sees what is the closest point to fly to.
+        // Generates a path between the points and sees what is the closest point to fly to.
         // Also sets the # of photos
         if(fileName != null){
             path = new Path();
@@ -478,11 +479,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             finalBox.add(new LatLng(aNorth, aWest));
             finalBox.add(build.southwest);
             finalBox.add(new LatLng(aSouth, aEast));
+            for (LatLng finalBoxLatLng :
+                    finalBox) {
+                Log.d("lat/lng Box", finalBoxLatLng.toString());
+            }
             Log.d("box", "Box created");
             if (polygonList.isEmpty()) {
                 polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(finalBox).fillColor(Color.argb(75, 255, 102, 102))));
             } else {
-                polygonList.getFirst().remove();
                 polygonList.removeFirst();
 
                 polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(finalBox).fillColor(Color.argb(75, 255, 102, 102))));
@@ -490,7 +494,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d("area", Double.toString(SphericalUtil.computeArea(polygonList.getFirst().getPoints())));
             Log.d("totalAreaCamera", Double.toString(specs.totalArea(60.0)));
             if (fileName != null) {
-                Log.d("saving photos", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
+                Log.d("saving planName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
                 path = new Path(sidelap, overlap, speed, specs, fileName, getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
             } else {
                 path = new Path(sidelap, overlap, speed, specs, "noName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/"));
@@ -605,24 +609,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     break;
             case "Clear Map":
                 clearMap();
+                path = new Path();
                 numberOfMarkers = 0;
-                for (Polygon polygon :
-                        polygonList) {
-                    polygon.remove();
-                }
-                for (Polyline polyline :
-                        polylineList) {
-                    polyline.remove();
-                    fileName = null;
-                    TextView estTimeFlight = findViewById(R.id.estimated_flight_time);
-                    estTimeFlight.setText("Estimated Time: 0");
-                    TextView estPhotos = findViewById(R.id.estimated_number_of_photos);
-                    estPhotos.setText("# of photos: 0");
-                    TextView totalArea = findViewById(R.id.total_area);
-                    totalArea.setText("Total Area: 0 acres");
-                    overlap = 0;
-                    sidelap = 0;
-                }
+                polygonList.clear();
+                polylineList.clear();
+                markerLinkedList.clear();
+                removedMarkerList.clear();
+                fileName = null;
+                TextView estTimeFlight = findViewById(R.id.estimated_flight_time);
+                estTimeFlight.setText("Estimated Time: 0");
+                TextView estPhotos = findViewById(R.id.estimated_number_of_photos);
+                estPhotos.setText("# of photos: 0");
+                TextView totalArea = findViewById(R.id.total_area);
+                totalArea.setText("Total Area: 0 acres");
+                overlap = 0;
+                sidelap = 0;
                 break;
         }
     }
