@@ -179,8 +179,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 try {
                     Number number = numberFormat.parse(overlapText);
                     overlap = number.doubleValue();
-                    if (overlap >= 100.0) {
-                        overlap = 100.0;
+                    if (overlap > 99.0) {
+                        overlap = 99.0;
                     }
                     if (overlap <= 0.0) {
                         overlap = 0.0;
@@ -202,8 +202,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 try {
                     Number number = numberFormat.parse(sidelapText);
                     overlap = number.doubleValue();
-                    if (sidelap >= 100.0) {
-                        sidelap = 100.0;
+                    if (sidelap > 99.0) {
+                        sidelap = 99.0;
                     }
                     if (sidelap <= 0.0) {
                         sidelap = 0.0;
@@ -289,6 +289,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     BigDecimal flightTime = BigDecimal.valueOf(Integer.parseInt(line));
                     int[] intToTime = secondsToMinutesSeconds(flightTime);
                     TextView estimatedFlightTimeTextView = findViewById(R.id.estimated_flight_time);
+                    //TODO: Fix flight time
                     estimatedFlightTimeTextView.setText("Estimated Flight Time: " + intToTime[1] + ":" + intToTime[2]);
                 }
                 if ((line = bufferedReader.readLine()) != null){
@@ -437,7 +438,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 path.createPath(loadedLatLngs,mMap, currentLocation);
             }
             TextView estimatedPhotos = findViewById(R.id.estimated_number_of_photos);
-            estimatedPhotos.setText("Estimated # of photos: " + path.getNumberOfPhotos());
+            estimatedPhotos.setText("# of photos: " + path.getNumberOfPhotos());
         }
 
     }
@@ -649,6 +650,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             GCS_3DR_Activity_Intent.putExtra("vertSize", path.getVertSize());
         }
         GCS_3DR_Activity_Intent.putExtra("altitude", altitude);
+        GCS_3DR_Activity_Intent.putExtra("speed", speed);
         MapsActivity.this.startActivity(GCS_3DR_Activity_Intent);
     }
 }
