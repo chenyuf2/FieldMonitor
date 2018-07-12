@@ -289,11 +289,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     BigDecimal flightTime = BigDecimal.valueOf(Integer.parseInt(line));
                     int[] intToTime = secondsToMinutesSeconds(flightTime);
                     TextView estimatedFlightTimeTextView = findViewById(R.id.estimated_flight_time);
-                    estimatedFlightTimeTextView.setText(getString(R.string.estimatedFlightTime,intToTime[1], intToTime[2]));
+                    estimatedFlightTimeTextView.setText("Estimated Flight Time: " + intToTime[1] + ":" + intToTime[2]);
                 }
                 if ((line = bufferedReader.readLine()) != null){
                     TextView totalArea = findViewById(R.id.total_area);
-                    totalArea.setText(getString(R.string.totalAcres,Double.parseDouble(line)));
+                    totalArea.setText("Total area: " + line + " acres");
                 }
                 if ((line = bufferedReader.readLine()) != null){
                     speed = Double.parseDouble(line);
@@ -308,16 +308,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
         // you need to have a list of data that you want the spinner to display
-        List<String> spinnerArray =  new ArrayList<>();
+        List<String> spinnerArray =  new ArrayList<String>();
         spinnerArray.add("GoPro Hero 4 Black");
         spinnerArray.add("GoPro Hero 4 Silver");
 
-        ArrayAdapter<String> cameraAdapter = new ArrayAdapter<>(
+        ArrayAdapter<String> cameraAdapter = new ArrayAdapter<String>(
                 this, android.R.layout.simple_spinner_item, spinnerArray);
 
         cameraAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         final Spinner cameraSpinner = findViewById(R.id.cameraSpinner);
         cameraSpinner.setAdapter(cameraAdapter);
+        File cameraSpecsFile = new File(getExternalFilesDir(null),"cameraSpecs");
         cameraSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected( AdapterView<?> parent, View view, int position, long id ) {
@@ -436,7 +437,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 path.createPath(loadedLatLngs,mMap, currentLocation);
             }
             TextView estimatedPhotos = findViewById(R.id.estimated_number_of_photos);
-            estimatedPhotos.setText(getString(R.string.NumberOfPhotos, path.getNumberOfPhotos()));
+            estimatedPhotos.setText("Estimated # of photos: " + path.getNumberOfPhotos());
         }
 
     }
@@ -495,15 +496,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 path.createPath(polygonList.getFirst(), currentLocation, specs.getHorizontalFOV(altitude), specs.getVerticalFOV(altitude), mMap, build);
                 int estimatedFlightTime = path.getEstimatedFlightTime();
                 BigDecimal flightTime = BigDecimal.valueOf(estimatedFlightTime);
-                int[] timeOfFlight = secondsToMinutesSeconds(flightTime);
+                int[] test = secondsToMinutesSeconds(flightTime);
                 TextView estimatedFlightTimeTextView = findViewById(R.id.estimated_flight_time);
-                estimatedFlightTimeTextView.setText(getString(R.string.estimatedFlightTime,timeOfFlight[1], timeOfFlight[2]));
+                estimatedFlightTimeTextView.setText("Estimated Flight Time: " + test[1] + ":" + test[2]);
                 TextView estimatedPhotos = findViewById(R.id.estimated_number_of_photos);
-                estimatedPhotos.setText(getString(R.string.NumberOfPhotos,path.getNumberOfPhotos()));
+                estimatedPhotos.setText("Estimated # of photos: " + path.getNumberOfPhotos());
                 TextView totalArea = findViewById(R.id.total_area);
                 DecimalFormat df = new DecimalFormat();
                 df.setMaximumFractionDigits(2);
-                totalArea.setText(getString(R.string.totalAcres,Double.parseDouble(df.format(path.getAcreage()))));
+                totalArea.setText("Total area: " + df.format(path.getAcreage()).toString() + " acres");
                 if (planDir == null) {
                     AlertDialog.Builder noSavedPlan = new AlertDialog.Builder(MapsActivity.this);
                     noSavedPlan.setMessage("Please enter a file name");

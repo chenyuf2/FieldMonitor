@@ -48,6 +48,7 @@ import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
 import com.o3dr.services.android.lib.drone.mission.Mission;
 import com.o3dr.services.android.lib.drone.mission.item.command.ChangeSpeed;
+import com.o3dr.services.android.lib.drone.mission.item.command.ReturnToLaunch;
 import com.o3dr.services.android.lib.drone.mission.item.command.YawCondition;
 import com.o3dr.services.android.lib.drone.mission.item.spatial.Land;
 import com.o3dr.services.android.lib.drone.mission.item.spatial.Waypoint;
@@ -59,6 +60,7 @@ import com.o3dr.services.android.lib.drone.property.Home;
 import com.o3dr.services.android.lib.drone.property.Speed;
 import com.o3dr.services.android.lib.drone.property.State;
 
+import com.o3dr.services.android.lib.drone.property.VehicleMode;
 import com.o3dr.services.android.lib.model.AbstractCommandListener;
 
 import java.io.BufferedReader;
@@ -67,7 +69,6 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.LinkedList;
@@ -97,7 +98,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     Double altitude = 0.0;
 
-    Home droneHome;
+    boolean alertedOnce = false;
 
     double flyHomeBatteryPercentage = 25;
 
@@ -105,8 +106,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     // Is set to false once the drone mission has been set, indicating it has happened.
     boolean hasntHappened = true;
-
-    DecimalFormat twoDForm = new DecimalFormat("#.##");
 
     // On activity start, create a new drone, control tower, and set the ControlApi
     @Override
@@ -242,7 +241,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             }
         });
 
-        videoView = findViewById(R.id.video_content);
+        videoView = (TextureView) findViewById(R.id.video_content);
         videoView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable( SurfaceTexture surface, int width, int height) {
@@ -265,7 +264,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
             }
         });
-        startVideoStream = findViewById(R.id.start_video_stream);
+        startVideoStream = (Button) findViewById(R.id.start_video_stream);
         startVideoStream.setEnabled(false);
         startVideoStream.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -274,7 +273,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             }
         });
 
-        stopVideoStream = findViewById(R.id.stop_video_stream);
+        stopVideoStream = (Button) findViewById(R.id.stop_video_stream);
         stopVideoStream.setEnabled(false);
         stopVideoStream.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -310,7 +309,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     // Saves a bitmap image to the internal storage.
     // For saving an image from the video stream
-    private void saveToInternalStorage(Bitmap bitmapImage, int photoNumber){
+    private String saveToInternalStorage(Bitmap bitmapImage, int photoNumber){
         ContextWrapper cw = new ContextWrapper(getApplicationContext());
         // path to /data/data/yourapp/app_data/imageDir
         File directory = cw.getDir("photos", Context.MODE_PRIVATE);
@@ -327,13 +326,12 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             e.printStackTrace();
         } finally {
             try {
-                if (fos != null) {
-                    fos.close();
-                }
+                fos.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+        return directory.getAbsolutePath();
     }
 
     // Stops the video stream
@@ -360,8 +358,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     LinkedList<Circle> circleLinkedList = new LinkedList<>();
 
-
-    // TODO: Use this function to update the drone's location on the map
     private void updateDronePosition(LatLong currentPos){
         if (circleLinkedList.size() == 0){
             circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
@@ -383,17 +379,23 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         yawCondition.setAngle(0);
         mission.addMissionItem(yawCondition);
         int i = 2;
-        for (Waypoint droneWaypoint:
+        for (Waypoint waypoint1:
                 waypoints) {
-            mission.addMissionItem(i, droneWaypoint);
-            Log.d("mission", droneWaypoint.toString());
+            mission.addMissionItem(i, waypoint1);
+            Log.d("mission", waypoint1.toString());
             i++;
+
         }
+
         Waypoint homeWaypoint = new Waypoint();
-        homeWaypoint.setCoordinate(droneHome.getCoordinate());
-        mission.addMissionItem(homeWaypoint);
-        Land land = new Land();
-        mission.addMissionItem(land);
+        ReturnToLaunch rtl = new ReturnToLaunch();
+        rtl.setReturnAltitude(0.0);
+        mission.addMissionItem(rtl);
+//        mission.addMissionItem(homeWaypoint);
+        i++;
+//        Land land = new Land();
+//        mission.addMissionItem(land);
+//        i++;
         missionApiTest.setMission(mission,true);
     }
 
@@ -449,10 +451,11 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 // Updates the altitude
                 Altitude droneAltitude = this.drone.getAttribute(AttributeType.ALTITUDE);
                 TextView altitudeTextView = findViewById(R.id.currentAltitude);
-                altitudeTextView.setText(getString(R.string.droneCurrentAltitude,Double.valueOf(twoDForm.format(droneAltitude.getAltitude()))));
+                altitudeTextView.setText("Altitude: " + String.format("%3.1f", droneAltitude.getAltitude()) + "meters");
 
                 // If the drone is within a .5 meter height of the altitude wanted start the mission
                 if (droneAltitude.getAltitude() - altitude > -1 && hasntHappened){
+                    Log.d("starting mission", "attempting");
                     hasntHappened = false;
                     startMission();
                 }
@@ -462,14 +465,32 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 // Updates the battery left
                 Battery droneBattery = this.drone.getAttribute(AttributeType.BATTERY);
                 TextView droneBatteryTextView = findViewById(R.id.batteryLeft);
-                droneBatteryTextView.setText(getString(R.string.batteryPercentage,droneBattery.getBatteryRemain()));
+                droneBatteryTextView.setText("Battery: " + Double.toString(droneBattery.getBatteryRemain()) + "%");
+
                 // Warns the user if the drone goes below 30% battery
                 if (droneBattery.getBatteryRemain() < 30.0){
                     alertUser("Your battery is below 30%!");
                 }
                 // TODO: Have the user take control of the drone by disconnecting
-                if (droneBattery.getBatteryRemain() <= flyHomeBatteryPercentage){
-                    alertUser("Your battery is below flyHome, drone is disconnected, please take manual control.");
+                if (droneBattery.getBatteryRemain() <= flyHomeBatteryPercentage && !alertedOnce){
+                    alertedOnce = true;
+                    // TODO: Test this feature on a larger field
+//                    VehicleApi.getApi(drone).setVehicleMode(VehicleMode.COPTER_RTL, new AbstractCommandListener() {
+//                        @Override
+//                        public void onSuccess() {
+//                            Log.d("ChangeVehicleMode", "Vehicle mode change successful.");
+//                        }
+//                        @Override
+//                        public void onError(int executionError) {
+//                            Log.d("ChangeVehicleMode", "Vehicle mode change fail.");
+//                        }
+//
+//                        @Override
+//                        public void onTimeout() {
+//                            Log.d("ChangeVehicleMode", "Vehicle mode change timed out.");
+//                        }
+//                    });
+                    alertUser("Your battery is below flyHome, please quit the app and take manual control.");
                     drone.disconnect();
                     updateConnectedButton(false);
                 }
@@ -479,26 +500,35 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 // Updates the speed attribute
                 final Speed droneSpeed = this.drone.getAttribute(AttributeType.SPEED);
                 TextView droneSpeedTextView = findViewById(R.id.currentSpeed);
-                droneSpeedTextView.setText(getString(R.string.droneCurrentSpeed,Double.valueOf(twoDForm.format(droneSpeed.getGroundSpeed()))));
+                droneSpeedTextView.setText("Speed: " + String.format("%3.1f", droneSpeed.getGroundSpeed()) + "m/s");
+                break;
+
+            case AttributeEvent.GPS_POSITION:
+                Gps gpsPos = this.drone.getAttribute(AttributeType.GPS);
+                if (gpsPos != null && gpsPos.isValid()){
+                    updateDronePosition(gpsPos.getPosition());
+                }
                 break;
 
             case AttributeEvent.HOME_UPDATED:
                 // Updates the home position
-                droneHome = this.drone.getAttribute(AttributeType.HOME);
-                home.setCoordinate(droneHome.getCoordinate());
+                Home droneHomeTest = this.drone.getAttribute(AttributeType.HOME);
+                home.setCoordinate(droneHomeTest.getCoordinate());
+                Log.d("droneHomeTest", droneHomeTest.toString());
                 break;
 
             case AttributeEvent.MISSION_ITEM_UPDATED:
                 // Takes a photo at the mission item and updates the log to show what position the drone is currently in
                 if (numberOfPhotosTaken > 1 && numberOfPhotosTaken < (waypoints.size() + 2)){
-                    Bitmap bitmap = videoView.getBitmap();
-                    saveToInternalStorage(bitmap, actualPhotosTaken);
+                    // Gets the view from the video and captures it for processing
+                    //Bitmap bitmap = videoView.getBitmap();
+                    //saveToInternalStorage(bitmap, actualPhotosTaken);
                     actualPhotosTaken++;
                     TextView photosTakenTextView = findViewById(R.id.currentPhotosTaken);
                     photosTakenTextView.setText("# Of Photos Taken: " + actualPhotosTaken);
                     // TODO: Try to take photo on GoPro and the tablet
-//                    SoloCameraApi soloCameraApi = SoloCameraApi.getApi(this.drone);
-//                    soloCameraApi.takePhoto(null);
+                    SoloCameraApi soloCameraApi = SoloCameraApi.getApi(this.drone);
+                    soloCameraApi.takePhoto(null);
 
                     // Log photo position and drone position
                     final double[] droneYaw = { 0.0 };
