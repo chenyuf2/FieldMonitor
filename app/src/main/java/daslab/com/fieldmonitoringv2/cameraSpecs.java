@@ -7,6 +7,7 @@ import org.droidplanner.services.android.impl.core.survey.CameraInfo;
 public class cameraSpecs {
     public static final cameraSpecs GOPRO_HERO4_BLACK = new cameraSpecs(2.5,6.17,4.56);
     public static final cameraSpecs GOPRO_HERO4_SILVER = new cameraSpecs(2.5,5.37,4.04);
+    public static final cameraSpecs MICASENSE3 = new cameraSpecs(5.5,3.6,4.8);
     double focalLength, sensorHeight, sensorWidth;
 
     public cameraSpecs(){

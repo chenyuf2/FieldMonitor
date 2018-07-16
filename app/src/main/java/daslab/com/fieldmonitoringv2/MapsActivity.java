@@ -43,6 +43,7 @@ import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.File;
 
+import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -316,7 +317,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         List<String> spinnerArray =  new ArrayList<String>();
         spinnerArray.add("GoPro Hero 4 Black");
         spinnerArray.add("GoPro Hero 4 Silver");
-
+        spinnerArray.add("Micasense 3");
         ArrayAdapter<String> cameraAdapter = new ArrayAdapter<String>(
                 this, android.R.layout.simple_spinner_item, spinnerArray);
 
@@ -330,9 +331,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     case "GoPro Hero 4 Silver":
                         specs = cameraSpecs.GOPRO_HERO4_SILVER;
                         break;
+                        case "GoPro Hero 4 Black":
+                            specs = cameraSpecs.GOPRO_HERO4_BLACK;
+                            break;
+                    case "Micasense 3":
+                        specs = cameraSpecs.MICASENSE3;
+                        break;
                         default:
                             specs = cameraSpecs.GOPRO_HERO4_BLACK;
                             break;
+
                 }
             }
 
@@ -588,14 +596,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             savePlan();
                             Intent activityOpenPlan = new Intent(MapsActivity.this, activity_open_plan.class);
                             MapsActivity.this.startActivity(activityOpenPlan);
-                            Log.d("plan", "Opening plan");
                         }
                     }).setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {  //not removing items if cancel is done
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             Intent activityOpenPlan = new Intent(MapsActivity.this, activity_open_plan.class);
                             MapsActivity.this.startActivity(activityOpenPlan);
-                            Log.d("plan", "Opening plan");
                         }
                     }).show();  //show alert dialog
                     break;

@@ -7,6 +7,7 @@ import android.content.ContextWrapper;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.os.Bundle;
 import android.os.Handler;
@@ -156,7 +157,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-
         // Sets the control tower to this application
         this.controlTower = new ControlTower(getApplicationContext());
         final Button arm = findViewById(R.id.btnArmTakeOff);
@@ -361,11 +361,11 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     private void updateDronePosition(LatLong currentPos){
         if (circleLinkedList.size() == 0){
-            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
+            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude())).radius(5).strokeColor(Color.BLACK)));
         }
         else{
-            circleLinkedList.removeFirst();
-            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude()))));
+            circleLinkedList.removeFirst().remove();
+            circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude())).radius(5).strokeColor(Color.BLACK)));
         }
     }
 
@@ -387,8 +387,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             i++;
 
         }
-
-        Waypoint homeWaypoint = new Waypoint();
         ReturnToLaunch rtl = new ReturnToLaunch();
         rtl.setReturnAltitude(0.0);
         mission.addMissionItem(rtl);
@@ -504,8 +502,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 Gps gpsPos = this.drone.getAttribute(AttributeType.GPS);
                 if (gpsPos != null && gpsPos.isValid()){
                     // TODO: Test this feature
-                    mMap.addCircle(new CircleOptions().center(new LatLng(gpsPos.getPosition().getLatitude(),gpsPos.getPosition().getLongitude())).radius(2.0));
-                    //updateDronePosition(gpsPos.getPosition());
+                    updateDronePosition(gpsPos.getPosition());
                 }
                 break;
 
