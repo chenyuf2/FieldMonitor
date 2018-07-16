@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FieldMonitoringv2</string>
+    <string name="app_name">Field Monitor</string>
     <string name="title_activity_maps">Map</string>
     <string-array name="plans">
         <item>
