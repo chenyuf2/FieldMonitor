@@ -17,6 +17,8 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -37,7 +39,6 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.maps.android.SphericalUtil;
-import com.o3dr.services.android.lib.drone.mission.item.complex.CameraDetail;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -54,7 +55,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -102,6 +103,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     boolean planHasBeenSaved = false;
 
+    boolean hasGimbal;
+
+    private HashMap getFileNames(){
+        final List<String> plans = new LinkedList<>();
+        File plansFile = new File(plansDir.getAbsolutePath().concat("/"));
+        final HashMap plansHash = new HashMap();
+        File[] plansFiles = plansFile.listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File f) {
+                plansHash.put(f.getName(),true);
+                return f.isDirectory();
+            }
+        });
+        return plansHash;
+    }
+
+
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate(savedInstanceState);
@@ -132,14 +150,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d("plansDir", "Plans directory already exists");
         }
 
-        final EditText editText = findViewById(R.id.editText);
-        editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+        final EditText planID = findViewById(R.id.planID);
+        planID.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction( TextView v, int actionId, KeyEvent event ) {
                 boolean handled = false;
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    fileName = editText.getText().toString();
-                    if (!fileName.isEmpty()) {
+                    HashMap fileNames = getFileNames();
+                    fileName = planID.getText().toString();
+                    if (!fileName.isEmpty() && !fileNames.containsKey(fileName)) {
                         planDir = new File(plansDir.getAbsolutePath(), fileName);
                         points = new File(planDir.getAbsolutePath(), "points.txt");
                         if (!planDir.exists()) {
@@ -161,9 +180,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             builder.setTitle("Please change the file name");
                             builder.show();
                         }
-                        Log.d("editText", "Action received");
+                        Log.d("planID", "Action received");
                         handled = true;
-                    } else {
+                    }
+                    else if(fileNames.containsKey(fileName)){
+                        AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+                        builder.setMessage("File name already exists");
+                        builder.setTitle("Please change the file name");
+                        builder.show();
+                    }
+                    else {
                         Log.d("file", "No file name indicated");
                         AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
                         builder.setMessage("Please enter a file name");
@@ -303,9 +329,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
                 if ((line = bufferedReader.readLine()) != null){
                     speed = Double.parseDouble(line);
+                    speedEditText.setEnabled(false);
+                    speedEditText.setText(Double.toString(speed));
                 }
                 if ((line = bufferedReader.readLine()) != null){
                     altitude = Double.parseDouble(line);
+                    altitudeEditText.setEnabled(false);
+                    altitudeEditText.setText(Double.toString(altitude));
+
+                }
+                if ((line = bufferedReader.readLine()) != null){
+                    hasGimbal = Boolean.parseBoolean(line);
+                    CheckBox gimbalCheckBox = findViewById(R.id.gimbalCheckBox);
+                    gimbalCheckBox.setChecked(hasGimbal);
+                    gimbalCheckBox.setClickable(false);
+                }
+                if ((line = bufferedReader.readLine()) != null){
+                    overlap = Double.parseDouble(line);
+                    overlapEditText.setEnabled(false);
+                    overlapEditText.setText(Double.toString(overlap));
+                }
+                if ((line = bufferedReader.readLine()) != null){
+                    sidelap = Double.parseDouble(line);
+                    sideLapEditText.setEnabled(false);
+                    sideLapEditText.setText(Double.toString(sidelap));
+                }
+                if ((line = bufferedReader.readLine()) != null){
+                    String planName = line;
+                    planID.setEnabled(false);
+                    planID.setText(planName);
                 }
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -349,8 +401,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             }
         });
-        CameraDetail cameraDetail = new CameraDetail();
-        Log.d("cameraDetail", cameraDetail.toString());
+        CheckBox gimbalCheckBox = findViewById(R.id.gimbalCheckBox);
+
+        gimbalCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged( CompoundButton buttonView, boolean isChecked ) {
+                if (isChecked){
+                    hasGimbal = true;
+                }
+                else {
+                    hasGimbal = false;
+                }
+            }
+        });
+
     }
 
     private void clearMap() {
@@ -628,6 +692,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 estPhotos.setText("# of photos: 0");
                 TextView totalArea = findViewById(R.id.total_area);
                 totalArea.setText("Total Area: 0 acres");
+                EditText planID = findViewById(R.id.planID);
+                planID.setEnabled(true);
+                EditText overlapEditText = findViewById(R.id.overlap);
+                overlapEditText.setEnabled(true);
+                EditText sidelapEditText = findViewById(R.id.sidelap);
+                sidelapEditText.setEnabled(true);
+                EditText altitudeEditText = findViewById(R.id.altitude);
+                altitudeEditText.setEnabled(true);
+                EditText speedEditText = findViewById(R.id.flightSpeed);
+                speedEditText.setEnabled(true);
+                CheckBox gimbalCheckBox = findViewById(R.id.gimbalCheckBox);
+                gimbalCheckBox.setClickable(true);
                 overlap = 0;
                 sidelap = 0;
                 break;
@@ -655,6 +731,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             attributeFileWriter.write(df.format(path.getAcreage()) + "\n");
             attributeFileWriter.write(Double.toString(speed) + "\n");
             attributeFileWriter.write(Double.toString(altitude) + "\n");
+            attributeFileWriter.write(Boolean.toString(hasGimbal)+"\n");
+            attributeFileWriter.write(Double.toString(overlap) + "\n");
+            attributeFileWriter.write(Double.toString(sidelap) + "\n");
+            attributeFileWriter.write(plan.planName.concat("\n"));
             attributeFileWriter.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -680,6 +760,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             GCS_3DR_Activity_Intent.putExtra("horizSize", path.getHorizSize());
             GCS_3DR_Activity_Intent.putExtra("vertSize", path.getVertSize());
         }
+        GCS_3DR_Activity_Intent.putExtra("hasGimbal", hasGimbal);
         GCS_3DR_Activity_Intent.putExtra("altitude", altitude);
         GCS_3DR_Activity_Intent.putExtra("speed", speed);
         MapsActivity.this.startActivity(GCS_3DR_Activity_Intent);

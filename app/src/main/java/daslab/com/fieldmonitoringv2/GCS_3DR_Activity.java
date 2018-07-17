@@ -107,6 +107,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     // Is set to false once the drone mission has been set, indicating it has happened.
     boolean hasntHappened = true;
 
+    boolean hasGimbal;
 
     // On activity start, create a new drone, control tower, and set the ControlApi
     @Override
@@ -198,6 +199,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             planName = extras.getString("planName");
             altitude = extras.getDouble("altitude");
             speed = extras.getDouble("speed");
+            hasGimbal = extras.getBoolean("hasGimbal");
             Log.d("planName", planName);
             File currentFileWaypoints = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/points.txt"));
             int i = 0;
@@ -408,7 +410,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
                     @Override
                     public void onGimbalOrientationCommandError( int error ) {
-                        Log.d("orientation", "Error " + error);
                     }
                 });
             }
@@ -432,7 +433,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 armButton.setVisibility(View.VISIBLE);
                 // Updates the connected button
                 updateConnectedButton(this.drone.isConnected());
-                setGimbal();
+                if (hasGimbal){
+                    setGimbal();
+                }
                 setMission();
                 break;
                 
@@ -516,6 +519,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             case AttributeEvent.MISSION_ITEM_UPDATED:
                 // Takes a photo at the mission item and updates the log to show what position the drone is currently in
                 if (numberOfPhotosTaken > 1 && numberOfPhotosTaken < (waypoints.size() + 2)){
+                    Log.d("photoSpot", "attemping to take photo");
                     // Gets the view from the video and captures it for processing
                     //Bitmap bitmap = videoView.getBitmap();
                     //saveToInternalStorage(bitmap, actualPhotosTaken);
@@ -531,75 +535,56 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                     final double[] dronePitch = { 0.0 };
                     final double[] droneRoll = { 0.0 };
                     final boolean[] executedOnce = {false};
-                    GimbalApi.GimbalOrientationListener orientationListener = new GimbalApi.GimbalOrientationListener() {
-                        @Override
-                        public void onGimbalOrientationUpdate( GimbalApi.GimbalOrientation orientation ) {
-                            if (!executedOnce[0]){
-                                dronePitch[0] = orientation.getPitch();
-                                droneYaw[0] = orientation.getYaw();
-                                droneRoll[0] = orientation.getRoll();
-                                executedOnce[0] = true;
-                                try {
-                                    @SuppressLint("SimpleDateFormat") SimpleDateFormat sdf = new SimpleDateFormat("MM-dd-yyyy-H-m-s");
-                                    Calendar c = Calendar.getInstance();
-                                    String date = sdf.format(c.getTime());
-                                    File currentLog = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/log").concat(date).concat(".txt"));
-                                    Speed currentSpeed;
-                                    FileWriter fileWriter = new FileWriter(currentLog);
-                                    final Gps droneGps = drone.getAttribute(AttributeType.GPS);
-                                    final Altitude altitude = drone.getAttribute(AttributeType.ALTITUDE);
-                                    // Photo #
-                                    fileWriter.write("Photo #" + actualPhotosTaken + "\n");
+                    if (hasGimbal){
+                        Log.d("hasGimbalOr", "true");
+                        GimbalApi.GimbalOrientationListener orientationListener = new GimbalApi.GimbalOrientationListener() {
+                            @Override
+                            public void onGimbalOrientationUpdate( GimbalApi.GimbalOrientation orientation ) {
+                                if (!executedOnce[0]){
+                                    dronePitch[0] = orientation.getPitch();
+                                    droneYaw[0] = orientation.getYaw();
+                                    droneRoll[0] = orientation.getRoll();
+                                    executedOnce[0] = true;
+                                    try {
+                                        FileWriter fileWriter = logDroneStats();
 
-                                    // Drone Lat and Lng
-                                    fileWriter.write("LatLng: " + droneGps.getPosition() + "\n");
+                                        Log.d("pitchWrite", Double.toString(dronePitch[0]));
+                                        Log.d("yawWrite", Double.toString(droneYaw[0]));
+                                        Log.d("rollWrite", Double.toString(droneRoll[0]));
 
-                                    // Drone Altitude
-                                    fileWriter.write("Alt: " + altitude + "\n");
+                                        // Gimbal Yaw
+                                        fileWriter.write("Gimbal Yaw " + droneYaw[0] + "\n");
 
-                                    // Drone Speed
-                                    currentSpeed = new Speed();
-                                    fileWriter.write("Speed: " + Double.toString(currentSpeed.getAirSpeed()).concat("\n"));
+                                        // Gimbal Roll
+                                        fileWriter.write("Gimbal Roll " + droneRoll[0] + "\n");
 
-                                    // Drone Yaw
-                                    YawCondition currentYaw = new YawCondition();
-                                    fileWriter.write("Drone Yaw: " + currentYaw.getAngle() + "\n");
+                                        // Gimbal Pitch
+                                        fileWriter.write("Gimbal Pitch " + dronePitch[0] + "\n");
+                                        fileWriter.close();
 
-                                    // Drone Roll
-                                    Attitude currentAttitude = new Attitude();
-                                    fileWriter.write("Drone Roll: " + currentAttitude.getRoll() + "\n");
-
-                                    // Drone Pitch
-                                    fileWriter.write("Drone Pitch: " + currentAttitude.getPitch()  + "\n");
-
-                                    Log.d("pitchWrite", Double.toString(dronePitch[0]));
-                                    Log.d("yawWrite", Double.toString(droneYaw[0]));
-                                    Log.d("rollWrite", Double.toString(droneRoll[0]));
-
-                                    // Gimbal Yaw
-                                    fileWriter.write("Gimbal Yaw " + droneYaw[0] + "\n");
-
-                                    // Gimbal Roll
-                                    fileWriter.write("Gimbal Roll " + droneRoll[0] + "\n");
-
-                                    // Gimbal Pitch
-                                    fileWriter.write("Gimbal Pitch " + dronePitch[0] + "\n");
-                                    fileWriter.close();
-
-                                } catch (IOException e) {
-                                    e.printStackTrace();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
                                 }
+
                             }
 
+                            @Override
+                            public void onGimbalOrientationCommandError( int error ) {
+                                Log.d("gimbal", "orientation error " + error);
+                            }
+                        };
+                        GimbalApi.getApi(drone).startGimbalControl(orientationListener);
+                        GimbalApi.getApi(drone).stopGimbalControl(orientationListener);
+                    }
+                    else {
+                        try {
+                            logDroneStats();
+                        } catch (IOException e) {
+                            e.printStackTrace();
                         }
+                    }
 
-                        @Override
-                        public void onGimbalOrientationCommandError( int error ) {
-                            Log.d("gimbal", "orientation error " + error);
-                        }
-                    };
-                    GimbalApi.getApi(drone).startGimbalControl(orientationListener);
-                    GimbalApi.getApi(drone).stopGimbalControl(orientationListener);
                 }
                 Log.d("missionItem", "updated");
                 numberOfPhotosTaken++;
@@ -607,6 +592,42 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             default:
                 break;
         }
+    }
+
+    private FileWriter logDroneStats() throws IOException {
+            @SuppressLint("SimpleDateFormat") SimpleDateFormat sdf = new SimpleDateFormat("MM-dd-yyyy-H-m-s");
+            Calendar c = Calendar.getInstance();
+            String date = sdf.format(c.getTime());
+            File currentLog = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/log").concat(date).concat(".txt"));
+            Speed currentSpeed;
+            FileWriter fileWriter = new FileWriter(currentLog);
+            final Gps droneGps = drone.getAttribute(AttributeType.GPS);
+            final Altitude altitude = drone.getAttribute(AttributeType.ALTITUDE);
+            // Photo #
+            fileWriter.write("Photo #" + actualPhotosTaken + "\n");
+
+            // Drone Lat and Lng
+            fileWriter.write(droneGps.getPosition() + "\n");
+
+            // Drone Altitude
+            fileWriter.write("Alt: " + altitude + "\n");
+
+            // Drone Speed
+            currentSpeed = new Speed();
+            fileWriter.write("Speed: " + Double.toString(currentSpeed.getAirSpeed()).concat("\n"));
+
+            // Drone Yaw
+            YawCondition currentYaw = new YawCondition();
+            fileWriter.write("Drone Yaw: " + currentYaw.getAngle() + "\n");
+
+            // Drone Roll
+            Attitude currentAttitude = new Attitude();
+            fileWriter.write("Drone Roll: " + currentAttitude.getRoll() + "\n");
+
+            // Drone Pitch
+            fileWriter.write("Drone Pitch: " + currentAttitude.getPitch()  + "\n");
+
+            return fileWriter;
     }
 
     private void updateArmedButton() {

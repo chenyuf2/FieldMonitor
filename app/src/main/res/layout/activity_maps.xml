@@ -60,7 +60,7 @@
         <EditText
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/editText"
+            android:id="@+id/planID"
             android:inputType="text"
             android:imeOptions="actionDone"
             android:padding="8dp"/>
@@ -116,6 +116,11 @@
             android:imeOptions="actionDone"
             android:id="@+id/flightSpeed"
             android:padding="8dp"/>
+        <CheckBox
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gimbal"
+            android:id="@+id/gimbalCheckBox" />
     </LinearLayout>
 
         <fragment xmlns:android="http://schemas.android.com/apk/res/android"
