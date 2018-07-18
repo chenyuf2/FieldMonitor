@@ -17,18 +17,6 @@
         android:text="Plan name"
         android:layout_margin="8dp"
         android:layout_weight=".5"/>
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Plan settings"
-        android:layout_margin="8dp"
-        android:layout_weight=".25"/>
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Delete?"
-        android:layout_margin="8dp"
-        android:layout_weight=".25"/>
     </LinearLayout>
     <android.support.v7.widget.RecyclerView
         android:layout_width="match_parent"
