@@ -469,25 +469,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 if (droneBattery.getBatteryRemain() < 30.0){
                     alertUser("Your battery is below 30%!");
                 }
-                // TODO: Have the user take control of the drone by disconnecting
                 if (droneBattery.getBatteryRemain() <= flyHomeBatteryPercentage && !alertedOnce){
                     alertedOnce = true;
-                    // TODO: Test this feature on a larger field
-//                    VehicleApi.getApi(drone).setVehicleMode(VehicleMode.COPTER_RTL, new AbstractCommandListener() {
-//                        @Override
-//                        public void onSuccess() {
-//                            Log.d("ChangeVehicleMode", "Vehicle mode change successful.");
-//                        }
-//                        @Override
-//                        public void onError(int executionError) {
-//                            Log.d("ChangeVehicleMode", "Vehicle mode change fail.");
-//                        }
-//
-//                        @Override
-//                        public void onTimeout() {
-//                            Log.d("ChangeVehicleMode", "Vehicle mode change timed out.");
-//                        }
-//                    });
                     alertUser("Your battery is below flyHome, please quit the app and take manual control.");
                     drone.disconnect();
                     updateConnectedButton(false);
@@ -504,7 +487,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             case AttributeEvent.GPS_POSITION:
                 Gps gpsPos = this.drone.getAttribute(AttributeType.GPS);
                 if (gpsPos != null && gpsPos.isValid()){
-                    // TODO: Test this feature
                     updateDronePosition(gpsPos.getPosition());
                 }
                 break;
