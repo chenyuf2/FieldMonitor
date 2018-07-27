@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
@@ -27,8 +28,10 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
@@ -38,7 +41,18 @@ import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
+
 import com.google.maps.android.SphericalUtil;
+import com.o3dr.services.android.lib.coordinate.LatLong;
+import com.o3dr.services.android.lib.drone.mission.item.complex.Survey;
+
+import org.droidplanner.services.android.impl.core.helpers.coordinates.CoordBounds;
+import org.droidplanner.services.android.impl.core.helpers.units.Area;
+import org.droidplanner.services.android.impl.core.survey.CameraInfo;
+import org.droidplanner.services.android.impl.core.survey.Footprint;
+import org.droidplanner.services.android.impl.core.survey.SurveyData;
+import org.droidplanner.services.android.impl.core.survey.grid.Grid;
+import org.droidplanner.services.android.impl.core.survey.grid.GridBuilder;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -55,6 +69,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -105,8 +120,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     boolean hasGimbal;
 
+    Survey survey = new Survey();
+
     private HashMap getFileNames(){
-        final List<String> plans = new LinkedList<>();
         File plansFile = new File(plansDir.getAbsolutePath().concat("/"));
         final HashMap plansHash = new HashMap();
         File[] plansFiles = plansFile.listFiles(new FileFilter() {
@@ -363,6 +379,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            mapFragment.getView().setClickable(false);
         }
         // you need to have a list of data that you want the spinner to display
         List<String> spinnerArray =  new ArrayList<String>();
@@ -414,6 +431,62 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
+        CheckBox footprintCheckBox = findViewById(R.id.footPrintCheckBox);
+
+        footprintCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged( CompoundButton buttonView, boolean isChecked ) {
+                int cameraLocationCount = cameraLocations.size();
+                if (isChecked) {
+                    for (int i = 0; i < cameraLocationCount; i++){
+                        cameraLocations.get(i).visiblePolygon();
+                    }
+                }
+                else{
+                    for (int i = 0; i < cameraLocationCount; i++){
+                        cameraLocations.get(i).invisiblePolygon();
+                    }
+                }
+            }
+        });
+
+    }
+
+    class CameraLocation{
+        private List<LatLng> footprintLatLng = new LinkedList<>();
+        private Polygon footprintPolygon;
+        private double horizView = (specs.getHorizontalFOV(altitude)) / 2;
+        private double vertView = (specs.getVerticalFOV(altitude)) / 2;
+
+        CameraLocation(LatLong cameraLocation){
+            LatLngBounds.Builder builder = new LatLngBounds.Builder();
+            builder.include(SphericalUtil.computeOffsetOrigin(new LatLng(cameraLocation.getLatitude(), cameraLocation.getLongitude()), horizView, 0));
+            builder.include(SphericalUtil.computeOffsetOrigin(new LatLng(cameraLocation.getLatitude(), cameraLocation.getLongitude()), vertView, 90));
+            builder.include(SphericalUtil.computeOffsetOrigin(new LatLng(cameraLocation.getLatitude(), cameraLocation.getLongitude()), horizView, 180));
+            builder.include(SphericalUtil.computeOffsetOrigin(new LatLng(cameraLocation.getLatitude(), cameraLocation.getLongitude()), vertView, 270));
+            LatLngBounds bounds = builder.build();
+            double North = bounds.northeast.latitude;
+            double East = bounds.northeast.longitude;
+            double South = bounds.southwest.latitude;
+            double West = bounds.southwest.longitude;
+            LatLng northWest = new LatLng(North, West);
+            LatLng southEast = new LatLng(South, East);
+            this.footprintLatLng.add(bounds.northeast);
+            this.footprintLatLng.add(southEast);
+            this.footprintLatLng.add(bounds.southwest);
+            this.footprintLatLng.add(northWest);
+            this.footprintPolygon = mMap.addPolygon(new PolygonOptions().addAll(footprintLatLng).fillColor(Color.argb(45,66, 235, 244)));
+            invisiblePolygon();
+        }
+
+        public void invisiblePolygon(){
+            this.footprintPolygon.setStrokeColor(Color.TRANSPARENT);
+            this.footprintPolygon.setFillColor(Color.TRANSPARENT);
+        }
+        public void visiblePolygon(){
+            this.footprintPolygon.setFillColor(Color.argb(45,66, 235, 244));
+            this.footprintPolygon.setStrokeColor(Color.BLACK);
+        }
     }
 
     private void clearMap() {
@@ -511,13 +584,128 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             TextView estimatedPhotos = findViewById(R.id.estimated_number_of_photos);
             estimatedPhotos.setText("# of photos: " + path.getNumberOfPhotos());
         }
+        final Button finishPlanButton = findViewById(R.id.finishPlan);
+        finishPlanButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick( View v ) {
+                createPlan();
+                finishPlanButton.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    private void createPlan(){
+        if (numberOfMarkers < 4){
+            AlertDialog.Builder noSavedPlan = new AlertDialog.Builder(MapsActivity.this);
+            noSavedPlan.setMessage("Not enough corners.");
+            noSavedPlan.setTitle("You need at least 4 corners to continue.");
+            noSavedPlan.show();
+            return;
+        }
+        List<LatLng> markersLatLng = new LinkedList<>();
+        for (Marker marker :
+                markerLinkedList) {
+            markersLatLng.add(marker.getPosition());
+        }
+        Log.d("box", "Box created");
+        if (polygonList.isEmpty()) {
+            polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(markersLatLng).fillColor(Color.argb(75, 255, 102, 102))));
+        } else {
+            polygonList.removeFirst();
+
+            polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(markersLatLng).fillColor(Color.argb(75, 255, 102, 102))));
+        }
+        if (currentLocation != null) {
+            SurveyData surveyData = new SurveyData();
+            surveyData.setAltitude(altitude);
+            CameraInfo cameraInfo = new CameraInfo();
+            cameraInfo.focalLength = specs.focalLength;
+            cameraInfo.isInLandscapeOrientation = true;
+            cameraInfo.sidelap = sidelap;
+            cameraInfo.overlap = overlap;
+            cameraInfo.name = specs.cameraName;
+            cameraInfo.sensorHeight = specs.sensorHeight;
+            cameraInfo.sensorResolution =  specs.sensorResolution;
+            cameraInfo.sensorWidth = specs.sensorWidth;
+            Log.d("sensorlatsize", cameraInfo.getSensorLateralSize().toString());
+            Log.d("sensorlongsize", cameraInfo.getSensorLongitudinalSize().toString());
+            surveyData.setCameraInfo(cameraInfo);
+            org.droidplanner.services.android.impl.core.polygon.Polygon polygon = new org.droidplanner.services.android.impl.core.polygon.Polygon();
+            LinkedList<LatLong> latLongs = new LinkedList<>();
+            for (LatLng latLngBox :
+                    markersLatLng) {
+                latLongs.add(new LatLong(latLngBox.latitude,latLngBox.longitude));
+            }
+            polygon.addPoints(latLongs);
+            survey.setPolygonPoints(polygon.getPoints());
+            Area areaSqMeters = polygon.getArea();
+            survey.setPolygonArea(areaSqMeters.valueInSqMeters());
+            LatLong currentLocationLatLong = new LatLong(currentLocation.latitude,currentLocation.longitude);
+            GridBuilder gridBuilder = new GridBuilder(polygon,surveyData,currentLocationLatLong);
+            try {
+                Grid grid = gridBuilder.generate(false);
+                survey.setGridPoints(grid.gridPoints);
+                survey.setCameraLocations(grid.getCameraLocations());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            for (LatLong cameraLocation :
+                    survey.getCameraLocations()) {
+                cameraLocations.add(new CameraLocation(cameraLocation));
+                mMap.addMarker(new MarkerOptions().position(new LatLng(cameraLocation.getLatitude(), cameraLocation.getLongitude())).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+            }
+            path = new Path(survey, speed, currentLocation, fileName, getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
+
+            List<Polyline> cameraLocationLineList = new LinkedList<>();
+            cameraLocationLineList.add(mMap.addPolyline(new PolylineOptions().addAll(latLongs2LatLngs(survey.getCameraLocations()))));
+
+            int estimatedFlightTime = path.getEstimatedFlightTime();
+            Log.d("estFlightTime", String.valueOf(estimatedFlightTime));
+            BigDecimal flightTime = BigDecimal.valueOf(estimatedFlightTime);
+            int[] test = secondsToMinutesSeconds(flightTime);
+            TextView estimatedFlightTimeTextView = findViewById(R.id.estimated_flight_time);
+            estimatedFlightTimeTextView.setText("Estimated Flight Time: " + test[1] + ":" + test[2]);
+            Log.d("flightTime", Integer.toString(test[1]) + ":" + Integer.toString(test[2]));
+            TextView estimatedPhotos = findViewById(R.id.estimated_number_of_photos);
+            estimatedPhotos.setText("Estimated # of photos: " + survey.getCameraCount());
+            TextView totalArea = findViewById(R.id.total_area);
+            DecimalFormat df = new DecimalFormat();
+            df.setMaximumFractionDigits(2);
+            totalArea.setText("Total area: " + df.format(sqMeters2Acres(survey.getPolygonArea())) + " acres");
+            if (planDir == null) {
+                AlertDialog.Builder noSavedPlan = new AlertDialog.Builder(MapsActivity.this);
+                noSavedPlan.setMessage("Please enter a file name");
+                noSavedPlan.setTitle("File name needed");
+                noSavedPlan.show();
+            }
+        }
+        CheckBox showFootprints = findViewById(R.id.footPrintCheckBox);
+        showFootprints.setVisibility(View.VISIBLE);
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getView().setClickable(false);
+
+    }
+    List<CameraLocation> cameraLocations = new LinkedList<>();
+
+    private void updateCameraInfo(){
+
+    }
+
+    private void updateCameraLocations(){
+
+    }
+
+    private void updateFootprints(){
 
     }
 
     // Create corners of shape to be used
     @Override
     public void onMapClick( LatLng latLng ) {
-        if (numberOfMarkers < numberOfCorners) {
+        Bundle extras = getIntent().getExtras();
+        if (extras == null){
             if (!removedMarkerList.isEmpty()) {
                 Log.d("marker", "Creating marker number " + removedMarkerList.getLast().toString());
                 markerLinkedList.add(mMap.addMarker(new MarkerOptions().position(latLng).draggable(false).title(removedMarkerList.removeLast().toString())));
@@ -528,66 +716,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 markerLinkedList.add(mMap.addMarker(new MarkerOptions().position(latLng).draggable(false).title(Integer.toString(numberOfMarkers))));
                 numberOfMarkers++;
             }
-
-        }
-        if (numberOfMarkers == numberOfCorners) {
-            LatLngBounds.Builder builder = new LatLngBounds.Builder();
-            for (Marker marker :
-                    markerLinkedList) {
-                Log.d("marker", marker.getPosition().toString());
-                builder.include(marker.getPosition());
-            }
-            LatLngBounds build = builder.build();
-            List<LatLng> finalBox = new LinkedList<>();
-            double aNorth = build.northeast.latitude;
-            double aEast = build.northeast.longitude;
-            double aSouth = build.southwest.latitude;
-            double aWest = build.southwest.longitude;
-            finalBox.add(build.northeast);
-            finalBox.add(new LatLng(aNorth, aWest));
-            finalBox.add(build.southwest);
-            finalBox.add(new LatLng(aSouth, aEast));
-            for (LatLng finalBoxLatLng :
-                    finalBox) {
-                Log.d("lat/lng Box", finalBoxLatLng.toString());
-            }
-            Log.d("box", "Box created");
-            if (polygonList.isEmpty()) {
-                polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(finalBox).fillColor(Color.argb(75, 255, 102, 102))));
-            } else {
-                polygonList.removeFirst();
-
-                polygonList.add(mMap.addPolygon(new PolygonOptions().addAll(finalBox).fillColor(Color.argb(75, 255, 102, 102))));
-            }
-            if (fileName != null) {
-                Log.d("saving planName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName));
-                path = new Path(sidelap, overlap, speed, altitude, specs, fileName, getExternalFilesDir(null).getAbsolutePath().concat("/Plans/" + fileName), currentLocation);
-            } else {
-                path = new Path(sidelap, overlap, speed, altitude, specs, "noName", getExternalFilesDir(null).getAbsolutePath().concat("/Plans/"), currentLocation);
-            }
-            if (currentLocation != null) {
-                path.createPath(polygonList.getFirst(), currentLocation, specs.getHorizontalFOV(altitude), specs.getVerticalFOV(altitude), mMap, build);
-                int estimatedFlightTime = path.getEstimatedFlightTime();
-                Log.d("estFlightTime", String.valueOf(estimatedFlightTime));
-                BigDecimal flightTime = BigDecimal.valueOf(estimatedFlightTime);
-                int[] test = secondsToMinutesSeconds(flightTime);
-                TextView estimatedFlightTimeTextView = findViewById(R.id.estimated_flight_time);
-                estimatedFlightTimeTextView.setText("Estimated Flight Time: " + test[1] + ":" + test[2]);
-                Log.d("flightTime", Integer.toString(test[1]) + ":" + Integer.toString(test[2]));
-                TextView estimatedPhotos = findViewById(R.id.estimated_number_of_photos);
-                estimatedPhotos.setText("Estimated # of photos: " + path.getNumberOfPhotos());
-                TextView totalArea = findViewById(R.id.total_area);
-                DecimalFormat df = new DecimalFormat();
-                df.setMaximumFractionDigits(2);
-                totalArea.setText("Total area: " + df.format(path.getAcreage()).toString() + " acres");
-                if (planDir == null) {
-                    AlertDialog.Builder noSavedPlan = new AlertDialog.Builder(MapsActivity.this);
-                    noSavedPlan.setMessage("Please enter a file name");
-                    noSavedPlan.setTitle("File name needed");
-                    noSavedPlan.show();
-                }
+            if (numberOfMarkers >= 4){
+                Button finishPlanButton = findViewById(R.id.finishPlan);
+                finishPlanButton.setVisibility(View.GONE);
             }
         }
+
+    }
+
+    private double sqMeters2Acres(double sqMeters){
+        return (0.00024710538146717 * sqMeters);
+    }
+
+    private List<LatLng> latLongs2LatLngs(List<LatLong> latLongs){
+        List<LatLng> latLngs = new LinkedList<>();
+        for (LatLong latLong :
+                latLongs) {
+            latLngs.add(new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+        }
+        return latLngs;
     }
 
     private int[] secondsToMinutesSeconds( BigDecimal decimal){
@@ -629,7 +776,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         switch (parent.getItemAtPosition(position).toString()){
             case "Save Plan":
                 // Not enough markers have been placed on the map yet to create a region
-                if (numberOfMarkers != numberOfCorners){
+                if (numberOfMarkers < numberOfCorners){
                     AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
                     builder.setMessage("You do not have enough points on the map.");
                     builder.setTitle("Please add more markers.");
@@ -712,12 +859,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 EditText overlapEditText = findViewById(R.id.overlap);
                 overlapEditText.setEnabled(true);
+                overlapEditText.setText("");
                 EditText sidelapEditText = findViewById(R.id.sidelap);
                 sidelapEditText.setEnabled(true);
+                sidelapEditText.setText("");
                 EditText altitudeEditText = findViewById(R.id.altitude);
                 altitudeEditText.setEnabled(true);
+                altitudeEditText.setText("");
                 EditText speedEditText = findViewById(R.id.flightSpeed);
                 speedEditText.setEnabled(true);
+                speedEditText.setText("");
                 CheckBox gimbalCheckBox = findViewById(R.id.gimbalCheckBox);
                 gimbalCheckBox.setClickable(true);
                 overlap = 0;
@@ -736,7 +887,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public void savePlan(){
         plan = new Plan(path.getNumberOfPhotos(),planDir.getAbsolutePath(),fileName);
-        plan.markerLinkedList = path.getPhotoWaypoints();
+        plan.latLongs = survey.getCameraLocations();
         if (fileWriter != null){
             plan.writeToPlan(fileWriter);
         }
@@ -747,7 +898,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             attributeFileWriter.write(path.getEstimatedFlightTime() + "\n");
             DecimalFormat df = new DecimalFormat();
             df.setMaximumFractionDigits(2);
-            attributeFileWriter.write(df.format(path.getAcreage()) + "\n");
+            attributeFileWriter.write(df.format(sqMeters2Acres(survey.getPolygonArea())) + "\n");
             attributeFileWriter.write(Double.toString(speed) + "\n");
             attributeFileWriter.write(Double.toString(altitude) + "\n");
             attributeFileWriter.write(Boolean.toString(hasGimbal)+"\n");
@@ -782,6 +933,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         GCS_3DR_Activity_Intent.putExtra("hasGimbal", hasGimbal);
         GCS_3DR_Activity_Intent.putExtra("altitude", altitude);
         GCS_3DR_Activity_Intent.putExtra("speed", speed);
+        GCS_3DR_Activity_Intent.putExtra("survey", survey);
         MapsActivity.this.startActivity(GCS_3DR_Activity_Intent);
     }
 }

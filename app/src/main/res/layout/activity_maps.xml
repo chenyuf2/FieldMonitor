@@ -121,6 +121,18 @@
             android:layout_height="wrap_content"
             android:text="Gimbal"
             android:id="@+id/gimbalCheckBox" />
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Finish Plan"
+            android:visibility="invisible"
+            android:id="@+id/finishPlan"/>
+        <CheckBox
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Show Footprints"
+            android:visibility="invisible"
+            android:id="@+id/footPrintCheckBox"/>
     </LinearLayout>
 
         <fragment xmlns:android="http://schemas.android.com/apk/res/android"

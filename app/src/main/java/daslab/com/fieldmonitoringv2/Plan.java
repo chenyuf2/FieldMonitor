@@ -1,6 +1,7 @@
 package daslab.com.fieldmonitoringv2;
 
 import com.google.android.gms.maps.model.Marker;
+import com.o3dr.services.android.lib.coordinate.LatLong;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -11,7 +12,7 @@ public class Plan{
     private int numberOfWaypoints;
     String file;
     String planName;
-    List<Marker> markerLinkedList = new LinkedList<>();
+    List<LatLong> latLongs = new LinkedList<>();
 
     public Plan(int numberOfWaypoints, String file, String planName){
         this.numberOfWaypoints = numberOfWaypoints;
@@ -25,12 +26,11 @@ public class Plan{
 
     public void writeToPlan(FileWriter fileWriter){
         try {
-            Marker[] markerArray = markerLinkedList.toArray(new Marker[markerLinkedList.size()]);
-            for (int i = 0; i < markerArray.length ; i++){
-                fileWriter.write(Double.toString(markerArray[i].getPosition().latitude));
+            for (int i = 0; i < latLongs.size(); i++){
+                fileWriter.write(Double.toString(latLongs.get(i).getLatitude()));
                 fileWriter.write("\n");
 
-                fileWriter.write(Double.toString(markerArray[i].getPosition().longitude));
+                fileWriter.write(Double.toString(latLongs.get(i).getLongitude()));
                 fileWriter.write("\n");
             }
             fileWriter.close();

@@ -43,11 +43,11 @@
         </activity>
         <activity
             android:name=".activity_open_plan"
-            android:label="openPlan"></activity>
+            android:label="openPlan"/>
         <activity
             android:name=".GCS_3DR_Activity"
             android:label="@string/title_activity_gcs_3_dr_"
-            android:theme="@style/AppTheme"></activity>
+            android:theme="@style/AppTheme"/>
     </application>
 
 </manifest>
