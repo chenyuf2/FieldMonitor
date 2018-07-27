@@ -51,6 +51,7 @@ import com.o3dr.services.android.lib.drone.mission.Mission;
 import com.o3dr.services.android.lib.drone.mission.item.command.ChangeSpeed;
 import com.o3dr.services.android.lib.drone.mission.item.command.ReturnToLaunch;
 import com.o3dr.services.android.lib.drone.mission.item.command.YawCondition;
+import com.o3dr.services.android.lib.drone.mission.item.complex.Survey;
 import com.o3dr.services.android.lib.drone.mission.item.spatial.Waypoint;
 import com.o3dr.services.android.lib.drone.property.Altitude;
 import com.o3dr.services.android.lib.drone.property.Attitude;
@@ -71,6 +72,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.LinkedList;
+import java.util.List;
 
 public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener, TowerListener, OnMapReadyCallback {
 
@@ -108,6 +110,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     boolean hasntHappened = true;
 
     boolean hasGimbal;
+
+    Survey survey;
 
     // On activity start, create a new drone, control tower, and set the ControlApi
     @Override
@@ -200,6 +204,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             altitude = extras.getDouble("altitude");
             speed = extras.getDouble("speed");
             hasGimbal = extras.getBoolean("hasGimbal");
+            survey = extras.getParcelable("survey");
+
             Log.d("planName", planName);
             File currentFileWaypoints = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/points.txt"));
             int i = 0;
@@ -382,12 +388,19 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         yawCondition.setAngle(0);
         mission.addMissionItem(yawCondition);
         int i = 2;
-        for (Waypoint waypoint1:
-                waypoints) {
-            mission.addMissionItem(i, waypoint1);
-            Log.d("mission", waypoint1.toString());
+//        for (Waypoint waypoint1:
+//                waypoints) {
+//            mission.addMissionItem(i, waypoint1);
+//            Log.d("mission", waypoint1.toString());
+//            i++;
+//
+//        }
+        for (LatLong cameraLocation :
+                survey.getCameraLocations()) {
+            Waypoint location = new Waypoint();
+            location.setCoordinate(new LatLongAlt(cameraLocation.getLatitude(),cameraLocation.getLongitude(),altitude));
+            mission.addMissionItem(i,location);
             i++;
-
         }
         ReturnToLaunch rtl = new ReturnToLaunch();
         rtl.setReturnAltitude(0.0);
@@ -625,7 +638,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     private void startMission(){
         final MissionApi missionApi = MissionApi.getApi(this.drone);
-        missionApi.setMissionSpeed(4.0f,null);
+        missionApi.setMissionSpeed((float)speed,null);
         missionApi.startMission(true, false, new AbstractCommandListener() {
             @Override
             public void onSuccess() {
@@ -713,9 +726,10 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             }
         });
         LinkedList<LatLng> polyLineList = new LinkedList<>();
-        for (Waypoint waypoint :
-                waypoints) {
-            LatLng point = new LatLng(waypoint.getCoordinate().getLatitude(),waypoint.getCoordinate().getLongitude());
+        List<LatLong> cameraLocations = survey.getCameraLocations();
+        for (LatLong camera :
+                cameraLocations) {
+            LatLng point = new LatLng(camera.getLatitude(),camera.getLongitude());
             polyLineList.add(point);
             mMap.addMarker(new MarkerOptions().position(point));
         }

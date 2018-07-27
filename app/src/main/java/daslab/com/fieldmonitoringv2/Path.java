@@ -11,6 +11,11 @@ import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.SphericalUtil;
+import com.o3dr.services.android.lib.coordinate.LatLong;
+import com.o3dr.services.android.lib.drone.mission.item.complex.Survey;
+import com.o3dr.services.android.lib.drone.mission.item.complex.SurveyDetail;
+
+import org.droidplanner.services.android.impl.core.survey.grid.GridBuilder;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -67,10 +72,36 @@ public class Path {
         this.homeLocation = homeLocation;
     }
 
-    public LinkedList<Marker> getPhotoWaypoints() {
-        return photoWaypoints;
+    public Path( Survey survey, double flightSpeed, LatLng homeLocation, String planName, String directoryName){
+        SurveyDetail surveyDetail = survey.getSurveyDetail();
+        this.sidelap =  surveyDetail.getSidelap();
+        this.overlap = surveyDetail.getOverlap();
+        this.flightSpeed = flightSpeed;
+        this.numberOfTurns = survey.getNumberOfLines();
+        this.numberOfPhotos = survey.getCameraCount();
+        this.homeLocation = homeLocation;
+        List<LatLng> latLngs;
+        latLngs = latLongs2LatLngs(survey.getCameraLocations());
+        setEstimatedFlightTime(latLngs);
+        this.estimatedFlightTime = getEstimatedFlightTime();
+        this.planName = planName;
+        this.directoryName = directoryName;
+        this.horizSize = survey.getNumberOfLines();
+        this.vertSize = (survey.getCameraCount()/survey.getNumberOfLines());
+        this.flightAltitude = surveyDetail.getAltitude();
     }
 
+    private List<LatLng> latLongs2LatLngs(List<LatLong> latLongs){
+        List<LatLng> latLngs = new LinkedList<>();
+        for (LatLong latLong :
+                latLongs) {
+            latLngs.add(new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+        }
+        return latLngs;
+    }
+
+
+    // Returns the estimated flight time in seconds
     public int getEstimatedFlightTime(){
         return (int)this.estimatedFlightTime;
     }
@@ -178,15 +209,8 @@ public class Path {
     }
 
 
-    // TODO: Test this flight time calculation
     private void setEstimatedFlightTime(List<LatLng> photoPosition){
-        Log.d("takeoffTime", String.valueOf(takeOffTime()));
-        Log.d("flyToStartTime", String.valueOf(flyToStartTime(photoPosition)));
-        Log.d("flightDuration", String.valueOf(estimatedFlightDuration(photoPosition)));
-        Log.d("flyToHomeTime", String.valueOf(flyToHomeTime(photoPosition)));
-        Log.d("takeoffTime", String.valueOf(landingTime()));
         this.estimatedFlightTime = takeOffTime() + flyToStartTime(photoPosition) + estimatedFlightDuration(photoPosition) + flyToHomeTime(photoPosition) + landingTime();
-        Log.d("estFlightTime", String.valueOf(estimatedFlightTime));
     }
 
     private double estimatedFlightDuration(List<LatLng> photoPosition){
@@ -194,20 +218,27 @@ public class Path {
     }
 
     private double flyToStartTime(List<LatLng> photoPosition){
-        return ((SphericalUtil.computeDistanceBetween(homeLocation,photoPosition.get(0)))/ this.flightSpeed);
+        Log.d("homeLoc", homeLocation.toString());
+        Log.d("photoPosSize,", String.valueOf(photoPosition.size()));
+        Log.d("flightSpeed", String.valueOf(flightSpeed));
+        if (photoPosition.size() >= 1){
+            return ((SphericalUtil.computeDistanceBetween(homeLocation,photoPosition.get(0)))/ this.flightSpeed);
+        }
+        return 0.0;
     }
 
     private double flyToHomeTime(List<LatLng> photoPosition){
-        return ((SphericalUtil.computeDistanceBetween(photoPosition.get(photoPosition.size()-1),homeLocation))/this.flightSpeed);
+        if (photoPosition.size() >= 1){
+            return ((SphericalUtil.computeDistanceBetween(photoPosition.get(photoPosition.size()-1),homeLocation))/this.flightSpeed);
+        }
+        return 0.0;
     }
 
     private double takeOffTime(){
-        Log.d("takeofftime", Double.toString(flightAltitude/2));
         return (flightAltitude/2);
     }
 
     private double landingTime(){
-        Log.d("landingTime", Double.toString(flightAltitude + 10.0));
         return (flightAltitude + 10.0);
     }
     public int getHorizSize() {
