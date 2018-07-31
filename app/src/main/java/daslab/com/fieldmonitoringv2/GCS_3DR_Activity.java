@@ -8,10 +8,13 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.SurfaceTexture;
+import android.location.Location;
+import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Surface;
@@ -74,13 +77,15 @@ import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
+import static android.support.v4.app.NotificationCompat.PRIORITY_HIGH;
+
 public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener, TowerListener, OnMapReadyCallback {
 
     private ControlTower controlTower;
 
     private Drone drone;
-    private final Handler handler = new Handler();
 
+    private final Handler handler = new Handler();
     private String videoTag = "videoTag";
 
     private Button startVideoStream;
@@ -149,15 +154,12 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     }
 
-
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate(savedInstanceState);
         // Forces the tablet into landscape mode
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-
         setContentView(R.layout.activity_gcs_3_dr_);
-
         // Sets the map fragment
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -200,12 +202,17 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         });
         Bundle extras = getIntent().getExtras();
         if(extras !=null) {
+            Log.d("start", "Getting extras");
             planName = extras.getString("planName");
             altitude = extras.getDouble("altitude");
             speed = extras.getDouble("speed");
             hasGimbal = extras.getBoolean("hasGimbal");
             survey = extras.getParcelable("survey");
-
+            List<LatLong> cameraLocations = survey.getCameraLocations();
+            for (LatLong cameraLocation:
+                 cameraLocations) {
+                Log.d("camLoc", cameraLocation.toString());
+            }
             Log.d("planName", planName);
             File currentFileWaypoints = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/points.txt"));
             int i = 0;
@@ -218,6 +225,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                     latLongAltArrayList.add(i,new LatLongAlt(new LatLong(Double.parseDouble(line),Double.parseDouble(line1)),altitude));
                     Waypoint waypoint = new Waypoint();
                     waypoint.setCoordinate(latLongAltArrayList.get(i));
+                    Log.d("wayptTest", waypoint.getCoordinate().toString());
                     waypoints.add(i, waypoint);
                     i++;
                 }
@@ -226,6 +234,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             catch (IOException e) {
                 e.printStackTrace();
             }
+            Log.d("end", "Getting extras");
 
         }
         Button takeoff = findViewById(R.id.takeoff);
@@ -250,46 +259,47 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             }
         });
 
-        videoView = (TextureView) findViewById(R.id.video_content);
-        videoView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable( SurfaceTexture surface, int width, int height) {
-                startVideoStream.setEnabled(true);
-            }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
-            }
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                startVideoStream.setEnabled(false);
-                return true;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
-            }
-        });
-        startVideoStream = (Button) findViewById(R.id.start_video_stream);
-        startVideoStream.setEnabled(false);
-        startVideoStream.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startVideoStream(new Surface(videoView.getSurfaceTexture()));
-            }
-        });
-
-        stopVideoStream = (Button) findViewById(R.id.stop_video_stream);
-        stopVideoStream.setEnabled(false);
-        stopVideoStream.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                stopVideoStream();
-            }
-        });
+//        videoView = (TextureView) findViewById(R.id.video_content);
+//        videoView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+//            @Override
+//            public void onSurfaceTextureAvailable( SurfaceTexture surface, int width, int height) {
+//                startVideoStream.setEnabled(true);
+//            }
+//
+//            @Override
+//            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+//
+//            }
+//
+//            @Override
+//            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+//                startVideoStream.setEnabled(false);
+//                return true;
+//            }
+//
+//            @Override
+//            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+//
+//            }
+//        });
+//        startVideoStream = (Button) findViewById(R.id.start_video_stream);
+//        startVideoStream.setEnabled(false);
+//        startVideoStream.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                startVideoStream(new Surface(videoView.getSurfaceTexture()));
+//            }
+//        });
+//
+//        stopVideoStream = (Button) findViewById(R.id.stop_video_stream);
+//        stopVideoStream.setEnabled(false);
+//        stopVideoStream.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                stopVideoStream();
+//            }
+//        });
+        Log.d("end", "Oncreate");
     }
 
     // Initiates the video stream
@@ -388,13 +398,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         yawCondition.setAngle(0);
         mission.addMissionItem(yawCondition);
         int i = 2;
-//        for (Waypoint waypoint1:
-//                waypoints) {
-//            mission.addMissionItem(i, waypoint1);
-//            Log.d("mission", waypoint1.toString());
-//            i++;
-//
-//        }
         for (LatLong cameraLocation :
                 survey.getCameraLocations()) {
             Waypoint location = new Waypoint();
@@ -524,7 +527,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                     // TODO: Try to take photo on GoPro and the tablet
                     SoloCameraApi soloCameraApi = SoloCameraApi.getApi(this.drone);
                     soloCameraApi.takePhoto(null);
-
                     // Log photo position and drone position
                     final double[] droneYaw = { 0.0 };
                     final double[] dronePitch = { 0.0 };
@@ -600,7 +602,6 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             final Altitude altitude = drone.getAttribute(AttributeType.ALTITUDE);
             // Photo #
             fileWriter.write("Photo #" + actualPhotosTaken + "\n");
-
             // Drone Lat and Lng
             fileWriter.write(droneGps.getPosition() + "\n");
 
@@ -708,6 +709,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
             return;
         }
+        LocationManager locationManager = (LocationManager)getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+        locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
         // Turns on the blue dot to show location
         mMap.setMyLocationEnabled(true);
@@ -715,7 +718,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         FusedLocationProviderClient fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
         // Gets the last known location and updates the camera position to the location
-        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, new OnSuccessListener<android.location.Location>() {
+        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(this, new OnSuccessListener<Location>() {
             @Override
             public void onSuccess( android.location.Location location ) {
                 if (location == null) {
@@ -727,6 +730,13 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         });
         LinkedList<LatLng> polyLineList = new LinkedList<>();
         List<LatLong> cameraLocations = survey.getCameraLocations();
+        Log.d("cameraLocationSize", String.valueOf(cameraLocations.size()));
+        for (Waypoint waypoint:
+             waypoints) {
+            LatLng point = new LatLng(waypoint.getCoordinate().getLatitude(),waypoint.getCoordinate().getLongitude());
+            polyLineList.add(point);
+            mMap.addMarker(new MarkerOptions().position(point));
+        }
         for (LatLong camera :
                 cameraLocations) {
             LatLng point = new LatLng(camera.getLatitude(),camera.getLongitude());
