@@ -20,7 +20,7 @@ public class AnomalyDetection {
     double varianceSaturation;
     double varianceValue;
 
-    void anomalyDetection(String imagePath){
+    public AnomalyDetection(String imagePath){
         this.imagePath = imagePath;
         this.image = BitmapFactory.decodeFile(imagePath);
         this.imageHeight = this.image.getHeight();
