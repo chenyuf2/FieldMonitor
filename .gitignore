@@ -8,3 +8,5 @@
 /build
 /captures
 .externalNativeBuild
+/app/src/main/res/drawable/ic_camera.xml
+/.idea/assetWizardSettings.xml
