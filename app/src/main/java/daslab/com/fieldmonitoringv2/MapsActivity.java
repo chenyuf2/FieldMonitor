@@ -505,7 +505,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             };
         };
 
-        AnomalyDetection anomalyDetection = new AnomalyDetection("/sdcard/GOPR1920.JPG");
+        //AnomalyDetection anomalyDetection = new AnomalyDetection("/sdcard/GOPR1920.JPG");
 
     }
 
