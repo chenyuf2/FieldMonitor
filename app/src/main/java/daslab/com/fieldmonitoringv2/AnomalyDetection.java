@@ -4,7 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
 
-public class anomalyDetection {
+public class AnomalyDetection {
     String imagePath;
     Bitmap image;
     int numberOfGrids;
@@ -20,7 +20,7 @@ public class anomalyDetection {
     double varianceSaturation;
     double varianceValue;
 
-    void anomalyDetection(String imagePath){
+    public AnomalyDetection(String imagePath){
         this.imagePath = imagePath;
         this.image = BitmapFactory.decodeFile(imagePath);
         this.imageHeight = this.image.getHeight();
@@ -28,5 +28,4 @@ public class anomalyDetection {
         this.imageWidth = this.image.getWidth();
         Log.d("imageWidth", String.valueOf(imageWidth));
     }
-
 }
