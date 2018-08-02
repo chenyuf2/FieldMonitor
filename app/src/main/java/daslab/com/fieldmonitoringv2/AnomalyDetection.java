@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class AnomalyDetection {
     String imagePath;
@@ -23,6 +24,9 @@ public class AnomalyDetection {
     double varianceSaturation;
     double varianceValue;
 
+    HashMap<Pixel,PixelCoordinate> pixelHashMap = new HashMap<>();
+
+
     public AnomalyDetection(String imagePath){
         this.imagePath = imagePath;
         this.image = BitmapFactory.decodeFile(imagePath);
@@ -30,15 +34,20 @@ public class AnomalyDetection {
         Log.d("imageHeight", String.valueOf(imageHeight));
         this.imageWidth = this.image.getWidth();
         Log.d("imageWidth", String.valueOf(imageWidth));
-        int color = this.image.getPixel(0,0);
-        int red = Color.red(color);
-        int blue = Color.blue(color);
-        int green = Color.green(color);
-        int alpha = Color.alpha(color);
-        float[] hsv = new float[3];
-        Color.colorToHSV(color,hsv);
-        Log.d("hsv", String.valueOf(hsv[0]) + "," + String.valueOf(hsv[1]) + "," + String.valueOf(hsv[2]));
-        Log.d("color", red + ", " + green + ", " + blue + ", " + alpha);
+        getPixels();
+        if (pixelHashMap.containsValue(new PixelCoordinate(5,5))){
+            Log.d("true", "true");
+        }
+    }
+
+    private void getPixels() {
+        for (int i = 0; i < this.imageWidth-1; i++) {
+            for (int j = 0; j < this.imageHeight-1; j++) {
+                Pixel pixel = new Pixel(this.image.getPixel(i,j),i,j);
+                PixelCoordinate pixelCoordinate = new PixelCoordinate(i,j);
+                pixelHashMap.put(pixel,pixelCoordinate);
+            }
+        }
     }
 
 }
