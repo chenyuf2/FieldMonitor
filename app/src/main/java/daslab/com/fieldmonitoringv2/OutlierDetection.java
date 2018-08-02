@@ -2,13 +2,11 @@ package daslab.com.fieldmonitoringv2;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.util.Log;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 
-public class AnomalyDetection {
+public class OutlierDetection {
     String imagePath;
     Bitmap image;
     int numberOfGrids;
@@ -27,7 +25,7 @@ public class AnomalyDetection {
     HashMap<Pixel,PixelCoordinate> pixelHashMap = new HashMap<>();
 
 
-    public AnomalyDetection(String imagePath){
+    public OutlierDetection(String imagePath){
         this.imagePath = imagePath;
         this.image = BitmapFactory.decodeFile(imagePath);
         this.imageHeight = this.image.getHeight();
@@ -49,5 +47,4 @@ public class AnomalyDetection {
             }
         }
     }
-
 }
