@@ -133,8 +133,12 @@
             android:text="Show Footprints"
             android:visibility="invisible"
             android:id="@+id/footPrintCheckBox"/>
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/image"
+            android:visibility="gone"/>
     </LinearLayout>
-
         <fragment xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:tools="http://schemas.android.com/tools"
             android:id="@+id/map"

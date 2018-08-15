@@ -4,12 +4,15 @@ android {
     compileSdkVersion 27
     defaultConfig {
         applicationId "daslab.com.fieldmonitoringv2"
-        minSdkVersion 15
+        minSdkVersion 17
         // This must be 26 or below currently, if it is higher DroneKit api will not work
         targetSdkVersion 26
+        renderscriptTargetApi 21
+        renderscriptSupportModeEnabled true
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
     }
     buildTypes {
         release {
