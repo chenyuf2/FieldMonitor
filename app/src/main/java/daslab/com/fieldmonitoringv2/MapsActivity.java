@@ -10,9 +10,19 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
 import android.location.Location;
 import android.os.Build;
+import android.os.Environment;
+import android.renderscript.Allocation;
+import android.renderscript.RenderScript;
+import android.renderscript.Type;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
@@ -28,6 +38,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -80,8 +91,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnInfoWindowClickListener, AdapterView.OnItemSelectedListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnInfoWindowClickListener, AdapterView.OnItemSelectedListener{
 
     // Initializes the GoogleMap
     private GoogleMap mMap;
@@ -173,6 +185,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
         spinner.setAdapter(adapter);
+
 
         spinner.setOnItemSelectedListener(this);
         plansDir = new File(getExternalFilesDir(null), "Plans");
@@ -505,6 +518,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             };
         };
 
+        // Checks permissions to allow for allowing GPS location
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            Log.d("storage", "Asking for storage permission");
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+        }
+
+        String testPic = "/sdcard/GOPR1920.JPG";
+        //String testPic = "/sdcard/Picture1.jpg";
+        OutlierDetection outlierDetection = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            outlierDetection = new OutlierDetection(testPic, getApplicationContext());
+        }
     }
 
     private void savePlanName(){
@@ -1071,5 +1096,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         GCS_3DR_Activity_Intent.putExtra("speed", speed);
         GCS_3DR_Activity_Intent.putExtra("survey", survey);
         MapsActivity.this.startActivity(GCS_3DR_Activity_Intent);
+    }
+
+    public static int calculateInSampleSize(
+            BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        // Raw height and width of image
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+        int inSampleSize = 1;
+
+        if (height > reqHeight || width > reqWidth) {
+
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+
+            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+            // height and width larger than the requested height and width.
+            while ((halfHeight / inSampleSize) >= reqHeight
+                    && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+
+        return inSampleSize;
     }
 }
