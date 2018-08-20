@@ -525,10 +525,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         String testPic = "/sdcard/GOPR1920.JPG";
-        //String testPic = "/sdcard/Picture1.jpg";
         OutlierDetection outlierDetection = null;
+        ImageView imageView = findViewById(R.id.image);
+        imageView.setVisibility(View.VISIBLE);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             outlierDetection = new OutlierDetection(testPic, getApplicationContext());
+            imageView.setImageBitmap(outlierDetection.showBitmap());
         }
     }
 

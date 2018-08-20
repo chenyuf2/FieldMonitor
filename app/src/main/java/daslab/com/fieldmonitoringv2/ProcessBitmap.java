@@ -37,23 +37,57 @@ public class ProcessBitmap extends AsyncTask<ContextAndString, Void, Bitmap>{
 
         android.support.v8.renderscript.Allocation inputAllocation = android.support.v8.renderscript.Allocation.createFromBitmap(rs, bitmap);
         ScriptC_outlierDetection outlierDetection = new ScriptC_outlierDetection(rs);
+        Type outputTest = new Type.Builder(rs, android.support.v8.renderscript.Element.I32(rs)).setX(40).setY(30).create();
+        android.support.v8.renderscript.Allocation roi = android.support.v8.renderscript.Allocation.createTyped(rs,outputTest);
+        outlierDetection.set_regionsOfInterest(roi);
+        outlierDetection.invoke_initROI();
+        outlierDetection.set_input(inputAllocation);
 
-        android.support.v8.renderscript.Allocation hueAverage = android.support.v8.renderscript.Allocation.createSized(rs, android.support.v8.renderscript.Element.F32(rs),1);
         outlierDetection.forEach_addHueChannel(inputAllocation);
-        //float hueAverageValue[] = new float[1];
 
-        outlierDetection.forEach_getAverageImageHue(hueAverage);
-        //hueAverage.copyTo(hueAverageValue);
-        //Log.d("hue", String.valueOf(hueAverageValue[0]/360));
-        outlierDetection.invoke_resetHueSum();
         outlierDetection.forEach_calculateVariance(inputAllocation);
+        outlierDetection.forEach_findAreasOfInterest(inputAllocation);
 
-        android.support.v8.renderscript.Allocation hueVariance = android.support.v8.renderscript.Allocation.createSized(rs, android.support.v8.renderscript.Element.F32(rs),1);
-        //float hueVarianceValue[] = new float[1];
-        outlierDetection.forEach_getVarianceImageHue(hueVariance);
-        //hueVariance.copyTo(hueVarianceValue);
-        //Log.d("hue1", String.valueOf(hueVarianceValue[0]/129600));
-        return bitmap;
+
+        int[] regionsOfInterest1D = new int[1200];
+        roi.copy2DRangeTo(0,0,40,30,regionsOfInterest1D);
+        int regionsOfInterest2D[][] = oneDToTwoD(30,40,regionsOfInterest1D);
+        int count = 0;
+
+        Bitmap mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+        Canvas canvas = new Canvas(mutableBitmap);
+        Paint paint = new Paint();
+        paint.setStrokeWidth(2.0f);
+        paint.setStyle(Paint.Style.FILL_AND_STROKE);
+        paint.setColor(Color.RED);
+
+        for (int i = 0; i < 30; i++) {
+            for (int j = 0; j < 40; j++) {
+                if (regionsOfInterest2D[i][j] == 1){
+                    Rect rect = new Rect(i*100,j*100,(i*100)+99,(j*100)+99);
+                    canvas.drawRect(rect,paint);
+                    Log.d("rect".concat(String.valueOf(i)).concat(String.valueOf(j)),rect.toShortString());
+                }
+            }
+        }
+        Log.d("count", String.valueOf(count));
+        inputAllocation.destroy();
+        roi.destroy();
+        outlierDetection.destroy();
+        rs.destroy();
+
+        return mutableBitmap;
+    }
+
+    private int[][] oneDToTwoD(int rows, int cols, int[] array){
+        if(array.length != rows * cols){
+            throw new IllegalArgumentException("Invalid array length");
+        }
+        int returnArray[][] = new int[rows][cols];
+        for(int i = 0; i < rows; i++){
+            System.arraycopy(array, (i * cols), returnArray[i], 0, cols);
+        }
+        return returnArray;
     }
 
     //    @TargetApi(Build.VERSION_CODES.O)

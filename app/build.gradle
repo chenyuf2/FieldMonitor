@@ -7,7 +7,7 @@ android {
         minSdkVersion 17
         // This must be 26 or below currently, if it is higher DroneKit api will not work
         targetSdkVersion 26
-        renderscriptTargetApi 21
+        renderscriptTargetApi 23
         renderscriptSupportModeEnabled true
         versionCode 1
         versionName "1.0"

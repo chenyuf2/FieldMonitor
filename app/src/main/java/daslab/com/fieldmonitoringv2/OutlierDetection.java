@@ -33,7 +33,7 @@ public class OutlierDetection {
 
     Grid grid;
 
-    Bitmap bitmap1;
+    Bitmap bitmap;
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     public OutlierDetection( String imagePath, Context context) {
@@ -45,7 +45,8 @@ public class OutlierDetection {
         Bitmap img = BitmapFactory.decodeFile(imagePath);
         if (img != null){
             ContextAndString contextAndString = new ContextAndString(img,context);
-            Bitmap bitmap = new ProcessBitmap().doInBackground(contextAndString);
+            bitmap = new ProcessBitmap().doInBackground(contextAndString);
+            Log.d("bitmapHeight", String.valueOf(bitmap.getHeight()));
         }
         long endTime = System.nanoTime();
 
@@ -85,7 +86,8 @@ public class OutlierDetection {
 //                canvas.drawRect(rect,paint);
 //            }
 //        }
-        return bitmap1;
+
+        return bitmap;
     }
 
     public class Grid{
