@@ -1,225 +1,118 @@
 package daslab.com.fieldmonitoringv2;
 
-import android.annotation.TargetApi;
-import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.BitmapRegionDecoder;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.os.AsyncTask;
-import android.os.Build;
-import android.renderscript.Allocation;
-import android.renderscript.Element;
-import android.renderscript.RenderScript;
-import android.support.v8.renderscript.Script;
 import android.support.v8.renderscript.Type;
-import android.util.Log;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-import java.util.concurrent.ConcurrentHashMap;
+public class ProcessBitmap extends AsyncTask<ContextAndBitmap, Void, Bitmap>{
 
-public class ProcessBitmap extends AsyncTask<ContextAndString, Void, Bitmap>{
-
+    /**
+     *
+     * @param ContextAndBitmaps
+     * @return edited bitmap with all the cells that are marked as interesting.
+     */
     @Override
-    protected Bitmap doInBackground( ContextAndString... contextAndStrings ) {
+    protected Bitmap doInBackground( ContextAndBitmap... ContextAndBitmaps ) {
 
-        ContextAndString contextAndString = contextAndStrings[0];
+        // Gets the application context and bitmap to process
+        ContextAndBitmap contextAndBitmap = ContextAndBitmaps[0];
 
-        Bitmap bitmap = contextAndString.bitmap;
+        // Extracts the bitmap from the resource
+        Bitmap bitmap = contextAndBitmap.bitmap;
 
-        android.support.v8.renderscript.RenderScript rs = android.support.v8.renderscript.RenderScript.create(contextAndString.context);
+        // Starts up the renderscript using the context
+        android.support.v8.renderscript.RenderScript rs = android.support.v8.renderscript.RenderScript.create(contextAndBitmap.context);
 
-        android.support.v8.renderscript.Allocation inputAllocation = android.support.v8.renderscript.Allocation.createFromBitmap(rs, bitmap);
+        // Creates a Renderscript Allocation from the bitmap image
+        android.support.v8.renderscript.Allocation bitmapAllocation = android.support.v8.renderscript.Allocation.createFromBitmap(rs, bitmap);
+
+        // Inititlize the outlier detection script
         ScriptC_outlierDetection outlierDetection = new ScriptC_outlierDetection(rs);
-        Type outputTest = new Type.Builder(rs, android.support.v8.renderscript.Element.I32(rs)).setX(40).setY(30).create();
-        android.support.v8.renderscript.Allocation roi = android.support.v8.renderscript.Allocation.createTyped(rs,outputTest);
+
+        // Create the type of region of interest that is 40 x 30
+        Type regionsOfInterest = new Type.Builder(rs, android.support.v8.renderscript.Element.I32(rs)).setX(40).setY(30).create();
+
+        // Creates the allocation for the region of interest
+        android.support.v8.renderscript.Allocation roi = android.support.v8.renderscript.Allocation.createTyped(rs,regionsOfInterest);
+
+        // Sets the region of interest within the script
         outlierDetection.set_regionsOfInterest(roi);
+
+        // Initilizes the region of interests to 0, to default to not interesting
         outlierDetection.invoke_initROI();
-        outlierDetection.set_input(inputAllocation);
 
-        outlierDetection.forEach_addHueChannel(inputAllocation);
+        // Sets the input to bitmap allocation, to access pixels outside of the actual current pixel
+        outlierDetection.set_bitmapImage(bitmapAllocation);
 
-        outlierDetection.forEach_calculateVariance(inputAllocation);
-        outlierDetection.forEach_findAreasOfInterest(inputAllocation);
+        // Adds up the overall hues for the entire image
+        outlierDetection.forEach_addHueChannel(bitmapAllocation);
 
+        // Calculates the variance for the entire image
+        outlierDetection.forEach_calculateVariance(bitmapAllocation);
 
+        // Finds the areas of interests for a 4000x3000 image
+        outlierDetection.forEach_findAreasOfInterest(bitmapAllocation);
+
+        // The region of interests can only be returned to a 1D array
         int[] regionsOfInterest1D = new int[1200];
-        roi.copy2DRangeTo(0,0,40,30,regionsOfInterest1D);
-        int regionsOfInterest2D[][] = oneDToTwoD(30,40,regionsOfInterest1D);
-        int count = 0;
 
+        // This copies the array into the 1d region of interest
+        roi.copy2DRangeTo(0,0,40,30,regionsOfInterest1D);
+
+        // Changes the 1D array to a 2D array for easy access to create rectangles for the image
+        int regionsOfInterest2D[][] = oneDToTwoD(30,40,regionsOfInterest1D);
+
+        // Creates a mutable bitmap to add the rectangles to the image
         Bitmap mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+
+        // Creates a canvas for the bitmap to be drawn on
         Canvas canvas = new Canvas(mutableBitmap);
+
+        // Creates the paint and style type
         Paint paint = new Paint();
-        paint.setStrokeWidth(2.0f);
-        paint.setStyle(Paint.Style.FILL_AND_STROKE);
+        paint.setStrokeWidth(7.0f);
+        paint.setStyle(Paint.Style.STROKE);
         paint.setColor(Color.RED);
 
+        // Goes through and colors the cells that are marked as interesting.
         for (int i = 0; i < 30; i++) {
             for (int j = 0; j < 40; j++) {
                 if (regionsOfInterest2D[i][j] == 1){
                     Rect rect = new Rect(i*100,j*100,(i*100)+99,(j*100)+99);
                     canvas.drawRect(rect,paint);
-                    Log.d("rect".concat(String.valueOf(i)).concat(String.valueOf(j)),rect.toShortString());
                 }
             }
         }
-        Log.d("count", String.valueOf(count));
-        inputAllocation.destroy();
+
+        // Destroys the memory that was used for the image, to free up space
+        bitmapAllocation.destroy();
         roi.destroy();
         outlierDetection.destroy();
         rs.destroy();
 
+        // Returns the image to be displayed
         return mutableBitmap;
     }
 
-    private int[][] oneDToTwoD(int rows, int cols, int[] array){
-        if(array.length != rows * cols){
+    /**
+     * Takes in the height and width of a 1D array and converts it to a 2D array
+     * @param height Height of the array
+     * @param width Width of the array
+     * @param array 1D array of ints to be converted
+     * @return 2D Array with specified height and width
+     */
+    private int[][] oneDToTwoD(int height, int width, int[] array){
+        if(array.length != height * width){
             throw new IllegalArgumentException("Invalid array length");
         }
-        int returnArray[][] = new int[rows][cols];
-        for(int i = 0; i < rows; i++){
-            System.arraycopy(array, (i * cols), returnArray[i], 0, cols);
+        int returnArray[][] = new int[height][width];
+        for(int i = 0; i < height; i++){
+            System.arraycopy(array, (i * width), returnArray[i], 0, width);
         }
         return returnArray;
     }
-
-    //    @TargetApi(Build.VERSION_CODES.O)
-//    @Override
-//    protected PixelsAndHSV doInBackground( String... strings ) {
-//
-//        BitmapFactory.Options options = new BitmapFactory.Options();
-//
-//        options.inJustDecodeBounds = true;
-//        // Downscales by a factor of 6, this needs to be a multiple of 2
-//        //options.inSampleSize = 5;
-//
-//        // Decodes the image from the image path with the options
-//        Bitmap bitmap = BitmapFactory.decodeFile(strings[0],options);
-//
-//        // Gets the height and width of the decoded image
-//        int width = options.outWidth;
-//        int height = options.outHeight;
-//
-//        Log.d("width", String.valueOf(width));
-//        Log.d("height", String.valueOf(height));
-//
-//        float hueValues = 0;
-//        int saturationValues = 0;
-//        int valueValues = 0;
-//        int pixelCount = 0;
-//        Pixel[][] pixels = new Pixel[width][height];
-//
-//        BitmapRegionDecoder bitmapRegionDecoder = null;
-//        try {
-//            bitmapRegionDecoder = BitmapRegionDecoder.newInstance(strings[0],false);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        int cellSize = 10;
-//
-//        ConcurrentHashMap<PixelCoordinate, Pixel> coordinatePixelConcurrentHashMap = new ConcurrentHashMap<>();
-//
-//        int numberOfCellsX = (width)/cellSize;
-//        int numberOfCellsY = (height)/cellSize;
-//
-//        int xStart;
-//        int xEnd;
-//        int yStart;
-//        int yEnd;
-//
-//        //Go from pixel 0 - 99 x 0 - 99 in the subimage
-//        // Go through all the x rows across
-//        // Move down one y
-//
-////        for (int x = 0; x < (width/cellSize); x++){
-////            for (int y = 0; y < (height/cellSize); y++) {
-////                Rect rect = new Rect(0,0,9,9);
-////                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-////                options.inJustDecodeBounds = false;
-////                Log.d("rect", rect.toShortString());
-////                bitmap = bitmapRegionDecoder.decodeRegion(rect,options);
-////                for(int i = 0; i < bitmap.getWidth(); i++){
-////                    for (int j = 0; j < bitmap.getHeight(); j++){
-////                        int c = bitmap.getPixel(i, j);
-////                        pixelCount++;
-////                        float[] hsvValues = new float[3];
-////                        Color.colorToHSV(c,hsvValues);
-////                        hueValues += (hsvValues[0]/360);
-////                        saturationValues += (hsvValues[1]*100);
-////                        valueValues += (hsvValues[2]*100);
-////                        Pixel pixel = new Pixel(c,(x*cellSize) + i,(y*cellSize) + j,(hsvValues[0]/360),hsvValues[1],hsvValues[2]);
-////                        PixelCoordinate pixelCoordinate = new PixelCoordinate((x*cellSize) + i,(y*cellSize) + j);
-////                        coordinatePixelConcurrentHashMap.put(pixelCoordinate,pixel);
-////                    }
-////                }
-////                bitmap.recycle();
-////            }
-////        }
-//
-////        // Gets the hsv values for each pixel and puts them in the pixel array
-////        for(int x = 0; x < width; x++){
-////            for (int y = 0; y < height; y++){
-////                int c = bitmap.getPixel(x, y);
-////                pixelCount++;
-////                float[] hsvValues = new float[3];
-////                Color.colorToHSV(c,hsvValues);
-////                hueValues += (hsvValues[0]/360);
-////                if (x % width == 0){
-////                    Log.d("hsvVal", String.valueOf(hsvValues[0]/360));
-////                }
-////                saturationValues += (hsvValues[1]*100);
-////                valueValues += (hsvValues[2]*100);
-////                pixels[x][y] = new Pixel(c,x,y,(hsvValues[0]/360),hsvValues[1],hsvValues[2]);
-////            }
-////        }
-//
-//        // calculate average of bitmap hsv values
-////        float hueOverall = (hueValues/pixelCount);
-////        float saturationOverall = (saturationValues/pixelCount);
-////        float valueOverall = (valueValues/pixelCount);
-//
-//        float[] hsvOverall = {0,0,0};//{hueOverall,saturationOverall,valueOverall};
-//
-//        float hueVariance = 0;
-//        float hueVariancePixel;
-//        float saturationVariance = 0;
-//        float saturationVariancePixel;
-//        float valueVariance = 0;
-//        float valueVariancePixel;
-//
-////        for(int x = 0; x < width - 1; x++){
-////            for (int y = 0; y < height - 1; y++){
-////                float[] hsvValues = pixels[x][y].hsv;
-////                hueVariancePixel = (hsvValues[0] - hueOverall) * (hsvValues[0] - hueOverall);
-////                if (x % width == 0){
-////                    Log.d("hsvVal1", String.valueOf(hsvValues[0]));
-////                }
-////                hueVariance += hueVariancePixel;
-////                saturationVariancePixel = (hsvValues[1] - saturationOverall) * (hsvValues[1] - saturationOverall);
-////                saturationVariance += saturationVariancePixel;
-////                valueVariancePixel = (hsvValues[2] - valueOverall) * (hsvValues[2] - valueOverall);
-////                valueVariance += valueVariancePixel;
-////                float[] varianceValues = {hueVariancePixel,saturationVariancePixel,valueVariancePixel};
-////                pixels[x][y].setHsvVariance(varianceValues,pixelCount);
-////            }
-////        }
-//
-////        hueVariance /= pixelCount;
-////        saturationVariance /= pixelCount;
-////        valueVariance /= pixelCount;
-//
-//        float[] hsvVarianceOverall = {hueVariance,saturationVariance,valueVariance};
-//        int[] heightWidth = {height,width};
-//
-//        return new PixelsAndHSV(pixels,hsvOverall, hsvVarianceOverall, pixelCount, heightWidth);
-//    }
-
 }

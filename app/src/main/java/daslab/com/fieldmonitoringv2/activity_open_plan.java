@@ -23,6 +23,9 @@ import java.util.List;
 
 import static daslab.com.fieldmonitoringv2.MapsActivity.plansDir;
 
+/**
+ * Shows all the plans that are currently saved in the directory, and allows clicking to open a new plan, delete by swiping.
+ */
 public class activity_open_plan extends AppCompatActivity {
 
     private RecyclerView.Adapter adapter;
@@ -81,11 +84,18 @@ public class activity_open_plan extends AppCompatActivity {
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate(savedInstanceState);
+
+        // Forces the device into landscape mode
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         setContentView(R.layout.activity_open_plan);
+
+        // Contains all the plan names
         final List<String> plans = new LinkedList<>();
-        Log.d("plans", plansDir.getAbsolutePath());
+
+        // Gets the entire directory of plans to go through
         File plansFile = new File(plansDir.getAbsolutePath().concat("/"));
+
+        // Gets the files and puts them in the list plans
         File[] plansFiles = plansFile.listFiles(new FileFilter() {
             @Override
             public boolean accept(File f) {
@@ -93,16 +103,21 @@ public class activity_open_plan extends AppCompatActivity {
                 return f.isDirectory();
             }
         });
+
+        // Logs how many plan files exist
         Log.d("plansLength","Folders count: " + plansFiles.length);
         final RecyclerView recyclerView = findViewById(R.id.listView);
 
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(layoutManager);
 
-        adapter = new PlanAdapter(plans,getApplicationContext());
+        // Sets the recycler view adapter to the plan names
+        adapter = new PlanAdapter(plans);
 
         recyclerView.addOnItemTouchListener(new RecyclerTouchListener(this,
                 recyclerView, new ClickListener(){
+
+            // Opens the selected plan in the mapsactivity view
             @Override
             public void onClick(View view, final int position) {
                 //Values are passing to activity & to fragment as well
@@ -114,7 +129,7 @@ public class activity_open_plan extends AppCompatActivity {
             }
 
             @Override
-            public void onLongClick(View view, int position) {
+            public void onLongClick( View view, int position ) {
 
             }
         }));
@@ -126,13 +141,14 @@ public class activity_open_plan extends AppCompatActivity {
                 return false;
             }
 
+            // Deletes a plan if swiped, after confirmation
             @Override
             public void onSwiped( RecyclerView.ViewHolder viewHolder, int direction ) {
                 final int position = viewHolder.getAdapterPosition(); //get position which is swipe
                 AlertDialog.Builder builder = new AlertDialog.Builder(activity_open_plan.this);
                 builder.setMessage("Are you sure to delete?");    //set message
 
-                builder.setPositiveButton("REMOVE", new DialogInterface.OnClickListener() { //when click on DELETE
+                builder.setPositiveButton("REMOVE", new DialogInterface.OnClickListener() { //when click on REMOVE
                     public void onClick(DialogInterface dialog, int which) {
                         adapter.notifyItemRemoved(position);    //item removed from recylcerview
                         Log.d("plan to remove spot", plans.get(position));
@@ -156,6 +172,8 @@ public class activity_open_plan extends AppCompatActivity {
 
         recyclerView.setAdapter(adapter);
     }
+
+    // Deletes a plan directory and all subfiles
     void deleteRecursive(File fileOrDirectory) {
         if (fileOrDirectory.isDirectory())
             for (File child : fileOrDirectory.listFiles())

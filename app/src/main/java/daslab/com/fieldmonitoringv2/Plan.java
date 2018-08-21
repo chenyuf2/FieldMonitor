@@ -1,6 +1,5 @@
 package daslab.com.fieldmonitoringv2;
 
-import com.google.android.gms.maps.model.Marker;
 import com.o3dr.services.android.lib.coordinate.LatLong;
 
 import java.io.FileWriter;

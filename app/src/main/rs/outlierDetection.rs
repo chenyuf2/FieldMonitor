@@ -1,45 +1,64 @@
 #pragma version(1)
+
+// Package name
 #pragma rs java_package_name(daslab.com.fieldmonitoringv2)
+
+// Relaxed floating point, not as accurate, but faster
 #pragma rs_fp_relaxed
 
-#include "rs_debug.rsh"
+// Uncomment to debug
+//#include "rs_debug.rsh"
+// To debug us rsDebug("message", value);
 
-// Use two global counters
+// Hue sum
 static int hueTotalSum = 0;
+
+// Variance sum
 static uint32_t varianceTotalSum = 0;
+
+// Number of pixels in the image
 static int numberOfPixels = 0;
+
+// Hue value not normalized
 static float imageHueAverage = 0;
+
+// Variance value not normalized
 static float imageHueVariance = 0;
 
-//static int regionsOfInterest[30][40];
-
-static int pixCounter = 0;
+// Hue Sum for the cell
 static int hueSumCell = 0;
 
-rs_allocation input;
+// The bitmap bitmapImage
+rs_allocation bitmapImage;
 
+// The 40x30 essentially 2d array
 rs_allocation regionsOfInterest;
 
+// initilizes all the values for regionsOfInterest to 0
 void initROI(){
     for(int i = 0; i < 1200; i++){
         rsSetElementAt_int(regionsOfInterest, 0, i);
     }
 }
 
+
 void __attribute__((kernel)) findAreasOfInterest(uchar4 in, uint32_t x, uint32_t y){
 
+    // If it goes beyond these markers, it is larger than we will calculate
     if(x > 3900 || y > 2900){
-        //rsDebug("Will go out of bounds", "returning");
-        return;// matrix;
+        return;
     }
+
+    // Gets the first element of the row and column
     if( (x % 100 == 0) && (y % 100 == 0)){
-        //rsAtomicSub(&hueSumCell, hueSumCell);
+        // Sets the hue sum cell to 0
         float hueSumCell = 0;
-        //rsDebug("hueSumCell", hueSumCell);
         for(int i = 0; i < 100; i++){
             for(int j = 0; j < 100; j++){
-                uchar4 neighbor = rsGetElementAt_uchar4(input, x+i, y+j);
+                // Gets the neighbor at i,j for a 100x100 grid from the starting x and y
+                uchar4 neighbor = rsGetElementAt_uchar4(bitmapImage, x+i, y+j);
 
+                // Starts the hue calculation
                 float hue = 0.0f;
 
                 float redPrime = native_divide(neighbor.r, 255.0f);
@@ -66,34 +85,23 @@ void __attribute__((kernel)) findAreasOfInterest(uchar4 in, uint32_t x, uint32_t
                 if(hue < 0.0f){
                     hue += 360.0f;
                 }
+                // Ends the hue calculation
                 hueSumCell += hue;
-                //rsAtomicAdd(&hueSumCell, hue);
-
             }
         }
-        rsAtomicInc(&pixCounter);
+        // Cell average
         float cellHueAverage = hueSumCell/10000;
+
+        // See if the cell hue average is less than the entire image hue + the variance
         if(cellHueAverage < (hueTotalSum + (varianceTotalSum/360))/12000000){
+            // If true, set the element at x/100,y/100 to true (1)
             rsSetElementAt_int(regionsOfInterest, 1, x/100, y/100);
         }
     }
 
 }
 
-int __attribute__((kernel)) returnPixCount(){
-    return pixCounter;
-}
-
-int __attribute__((kernel)) returnHueSum(){
-    return hueSumCell;
-}
-
-int __attribute__((kernel)) returnHuePlusVariance(){
-    return (hueTotalSum + varianceTotalSum);
-}
-
 // Takes the rgb value of a pixel and computes the hue
-// Adds the standard deviation squared to hueTotalSum
 void __attribute__((kernel)) addHueChannel(uchar4 in){
     float hue = 0.0f;
 
@@ -170,20 +178,9 @@ void __attribute__((kernel)) calculateVariance(uchar4 in){
     rsAtomicAdd(&varianceTotalSum, variance);
 }
 
-void divideVariance(){
-    imageHueVariance = native_divide(imageHueVariance,129600.0f);
-    //rsDebug("imageHueVar", imageHueVariance);
-}
-
-void divideAverage(){
-    imageHueAverage = native_divide(imageHueAverage, 360.0f);
-    //rsDebug("imageHueAvg", imageHueAverage);
-}
-
 // Returns the average hue of the entire image
 float __attribute__((kernel)) getAverageImageHue(){
     imageHueAverage += native_divide((float)hueTotalSum,(float)numberOfPixels);
-    //rsDebug("imageHueAvg", imageHueAverage);
     return imageHueAverage;
 }
 
@@ -191,7 +188,6 @@ float __attribute__((kernel)) getAverageImageHue(){
 // Returns the variance of the entire image
 float __attribute__((kernel)) getVarianceImageHue(){
     imageHueVariance += native_divide((float)varianceTotalSum,(float)numberOfPixels);
-    //rsDebug("imageHueVar", imageHueVariance);
     return imageHueVariance;
 }
 

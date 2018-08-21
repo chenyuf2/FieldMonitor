@@ -11,11 +11,8 @@ import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.SphericalUtil;
-import com.o3dr.services.android.lib.coordinate.LatLong;
 import com.o3dr.services.android.lib.drone.mission.item.complex.Survey;
 import com.o3dr.services.android.lib.drone.mission.item.complex.SurveyDetail;
-
-import org.droidplanner.services.android.impl.core.survey.grid.GridBuilder;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -42,6 +39,9 @@ public class Path {
 
     private LinkedList<Marker> photoWaypoints = new LinkedList<>();
 
+    /**
+     * Initilize a path to all zero's and a GoPro Hero 4 Black
+     */
     public Path() {
         this.sidelap = 0;
         this.overlap = 0;
@@ -57,51 +57,57 @@ public class Path {
         this.flightAltitude = 0.0;
     }
 
-    public Path(double sidelap, double overlap, double flightSpeed, double flightAltitude, cameraSpecs specs, String planName, String directoryName, LatLng homeLocation){
-        this.sidelap = sidelap;
-        this.overlap = overlap;
-        this.flightSpeed = flightSpeed;
-        this.specs = specs;
-        this.numberOfTurns = 0;
-        this.estimatedFlightTime = getEstimatedFlightTime();
-        this.planName = planName;
-        this.directoryName = directoryName;
-        this.horizSize = 0;
-        this.vertSize = 0;
-        this.flightAltitude = flightAltitude;
-        this.homeLocation = homeLocation;
-    }
-
+    /**
+     * Initilize a path and create
+     * @param survey The survey information containing the polygon and camera information
+     * @param flightSpeed The flight speed
+     * @param homeLocation The location closest to the the polyon
+     * @param planName The plan name that the path is being created for
+     * @param directoryName The directory name that it is being saved into
+     */
     public Path( Survey survey, double flightSpeed, LatLng homeLocation, String planName, String directoryName){
+
+        // Gets the survey detail
         SurveyDetail surveyDetail = survey.getSurveyDetail();
+
+        // Extracts the information from survey detail
         this.sidelap =  surveyDetail.getSidelap();
         this.overlap = surveyDetail.getOverlap();
-        this.flightSpeed = flightSpeed;
+
+        // Extracts information from survey
         this.numberOfTurns = survey.getNumberOfLines();
         this.numberOfPhotos = survey.getCameraCount();
+
+        // Sets flight speed
+        this.flightSpeed = flightSpeed;
+
+        // Sets the home location
         this.homeLocation = homeLocation;
-        List<LatLng> latLngs;
-        latLngs = latLongs2LatLngs(survey.getCameraLocations());
-        setEstimatedFlightTime(latLngs);
+
+        // Sets the camera locations into latlng format
+        LatLong2LatLngs latLngsConverted = new LatLong2LatLngs(survey.getCameraLocations());
+        List<LatLng> cameraLocations = latLngsConverted.getLatLngs();
+
+        // Sets the estimated flight time based off the camera locations
+        setEstimatedFlightTime(cameraLocations);
+
+        // Gets the estimated flight time and stores it
         this.estimatedFlightTime = getEstimatedFlightTime();
+
         this.planName = planName;
         this.directoryName = directoryName;
+
+        // Set the horizontal size based off number of points
         this.horizSize = survey.getNumberOfLines();
+        // Set the vertical size based off the points
         this.vertSize = (survey.getCameraCount()/survey.getNumberOfLines());
         this.flightAltitude = surveyDetail.getAltitude();
     }
 
-    private List<LatLng> latLongs2LatLngs(List<LatLong> latLongs){
-        List<LatLng> latLngs = new LinkedList<>();
-        for (LatLong latLong :
-                latLongs) {
-            latLngs.add(new LatLng(latLong.getLatitude(), latLong.getLongitude()));
-        }
-        return latLngs;
-    }
-
-
-    // Returns the estimated flight time in seconds
+    /**
+     * Gets the estimated flight time in seconds
+     * @return the estimated flight time in seconds
+     */
     public int getEstimatedFlightTime(){
         return (int)this.estimatedFlightTime;
     }
@@ -202,17 +208,28 @@ public class Path {
         setEstimatedFlightTime(markerLatLngs);
     }
 
-    // Generates the distance to travel and the number of photos to be taken
+    /**
+     * Generates the distance to travel and the number of photos to be taken for an already created set of latlngs
+     * @param latLngs Camera locations to travel
+     */
     public void createPath(LinkedList<LatLng> latLngs){
         distanceToTravel = SphericalUtil.computeLength(latLngs);
         numberOfPhotos = latLngs.size();
     }
 
-
+    /**
+     * Sets the estimated flight time based of the camera positions and a startup and land time
+     * @param photoPosition Camera Locations
+     */
     private void setEstimatedFlightTime(List<LatLng> photoPosition){
         this.estimatedFlightTime = takeOffTime() + flyToStartTime(photoPosition) + estimatedFlightDuration(photoPosition) + flyToHomeTime(photoPosition) + landingTime();
     }
 
+    /**
+     * Determines how long it will take to fly a path
+     * @param photoPosition Camera Locations
+     * @return
+     */
     private double estimatedFlightDuration(List<LatLng> photoPosition){
         return ((SphericalUtil.computeLength(photoPosition) +  + (numberOfTurns * 2))/this.flightSpeed);
     }
