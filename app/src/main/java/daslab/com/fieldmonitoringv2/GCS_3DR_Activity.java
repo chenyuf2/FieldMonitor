@@ -1,20 +1,18 @@
 package daslab.com.fieldmonitoringv2;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.SurfaceTexture;
 import android.location.Location;
 import android.location.LocationManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Surface;
@@ -77,36 +75,50 @@ import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
-import static android.support.v4.app.NotificationCompat.PRIORITY_HIGH;
-
 public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener, TowerListener, OnMapReadyCallback {
 
+    // Sets control tower
     private ControlTower controlTower;
 
+    // Sets the drone
     private Drone drone;
 
+    // Sets the handler
     private final Handler handler = new Handler();
-    private String videoTag = "videoTag";
 
+    // Sets the video tag
+    private String videoTag = "GOPROIMG";
+
+    // Sets the video start and stop stream
     private Button startVideoStream;
 
     private Button stopVideoStream;
 
+    // Sets the video view
     private TextureView videoView;
 
+    // Sets the lat long and altitude based off the file points.txt for the plan name specified
     LinkedList<LatLongAlt> latLongAltArrayList = new LinkedList<>();
+
+    // List of the waypoints, as that is what is needed to set a mission
     LinkedList<Waypoint> waypoints = new LinkedList<>();
 
+    // Sets the vehicle and control api
     VehicleApi vehicleApi;
     ControlApi controlApi;
 
+    // Creates the home waypoint
     Waypoint home = new Waypoint();
 
+    // Defaults the altitude and speed settings, in case they are not imported correctly
     Double altitude = 30.0;
     double speed = 5.0;
 
+    // Only shows the toast to fly the drone home at the battery percentage once
     boolean alertedOnce = false;
 
+    // Lets the user have control once the drone goes below 25% on the battery
+    // TODO: Have the drone automatically fly home at this percentage
     double flyHomeBatteryPercentage = 25;
 
     String planName;
@@ -114,11 +126,24 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     // Is set to false once the drone mission has been set, indicating it has happened.
     boolean hasntHappened = true;
 
+    // Does the drone we are using have a gimbal?
     boolean hasGimbal;
 
+    // Sets the survey
     Survey survey;
 
-    // On activity start, create a new drone, control tower, and set the ControlApi
+    // This is ALL of the mission spots
+    int numberOfMissionSpots = 0;
+
+    // This is the actual number of photos taken
+    int actualPhotosTaken = 0;
+
+    // Sets the googlemap
+    GoogleMap mMap;
+
+    /**
+     * On activity start, create a new drone, control tower, and set the ControlApi
+      */
     @Override
     public void onStart() {
         super.onStart();
@@ -128,7 +153,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     }
 
-    // On activity stop, disconnect the drone, unregister the drone, and disconnect the tower
+    /**
+     * On activity stop, disconnect the drone, unregister the drone, and disconnect the tower
+      */
     @Override
     public void onStop() {
         super.onStop();
@@ -141,7 +168,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         this.controlTower.disconnect();
     }
 
-    // On tower connected, register the drone to the control tower
+    /**
+     * On tower connected, register the drone to the control tower
+     */
     @Override
     public void onTowerConnected() {
         drone.unregisterDroneListener(this);
@@ -157,22 +186,34 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate(savedInstanceState);
+
         // Forces the tablet into landscape mode
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         setContentView(R.layout.activity_gcs_3_dr_);
+
         // Sets the map fragment
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
         // Sets the control tower to this application
         this.controlTower = new ControlTower(getApplicationContext());
+
+        // Arm button listener
         final Button arm = findViewById(R.id.btnArmTakeOff);
         arm.setOnClickListener(new View.OnClickListener() {
+
+            // Arm button was clicked
             @Override
             public void onClick( View v ) {
+
                 updateArmedButton();
+
+                // Determines if the drone is connected
                 if (drone.isConnected()){
                     vehicleApi = VehicleApi.getApi(drone);
+
+                    // Arms the drone
                     vehicleApi.arm(true,false, new AbstractCommandListener() {
                         @Override
                         public void onSuccess() {
@@ -193,6 +234,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             }
         });
 
+        // Connect to the drone button
         Button connectButton = findViewById(R.id.btnConnect);
         connectButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -200,6 +242,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 startConnect();
             }
         });
+
+        // Gets all the attributes from the file
         Bundle extras = getIntent().getExtras();
         if(extras !=null) {
             Log.d("start", "Getting extras");
@@ -237,6 +281,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             Log.d("end", "Getting extras");
 
         }
+
+        // The takeoff button can only be selected once the arm button is clicked
         Button takeoff = findViewById(R.id.takeoff);
         takeoff.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -259,46 +305,51 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             }
         });
 
-//        videoView = (TextureView) findViewById(R.id.video_content);
-//        videoView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-//            @Override
-//            public void onSurfaceTextureAvailable( SurfaceTexture surface, int width, int height) {
-//                startVideoStream.setEnabled(true);
-//            }
-//
-//            @Override
-//            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-//
-//            }
-//
-//            @Override
-//            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-//                startVideoStream.setEnabled(false);
-//                return true;
-//            }
-//
-//            @Override
-//            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-//
-//            }
-//        });
-//        startVideoStream = (Button) findViewById(R.id.start_video_stream);
-//        startVideoStream.setEnabled(false);
-//        startVideoStream.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                startVideoStream(new Surface(videoView.getSurfaceTexture()));
-//            }
-//        });
-//
-//        stopVideoStream = (Button) findViewById(R.id.stop_video_stream);
-//        stopVideoStream.setEnabled(false);
-//        stopVideoStream.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                stopVideoStream();
-//            }
-//        });
+
+        videoView = (TextureView) findViewById(R.id.video_content);
+
+        // Starts the video stream surface texture
+        videoView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable( SurfaceTexture surface, int width, int height) {
+                startVideoStream.setEnabled(true);
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                startVideoStream.setEnabled(false);
+                return true;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+
+            }
+        });
+        startVideoStream = (Button) findViewById(R.id.start_video_stream);
+        startVideoStream.setEnabled(false);
+        // Starts the video stream
+        startVideoStream.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startVideoStream(new Surface(videoView.getSurfaceTexture()));
+            }
+        });
+
+        stopVideoStream = (Button) findViewById(R.id.stop_video_stream);
+        stopVideoStream.setEnabled(false);
+        // Stops the video stream
+        stopVideoStream.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                stopVideoStream();
+            }
+        });
         Log.d("end", "Oncreate");
     }
 
@@ -326,8 +377,13 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         });
     }
 
-    // Saves a bitmap image to the internal storage.
-    // For saving an image from the video stream
+    /**
+     * Saves a bitmap image to the internal storage.
+     * For saving an image from the video stream
+     * @param bitmapImage The bitmap image to be saved
+     * @param photoNumber Which photo number was taken
+     * @return The path to where the image was saved
+     */
     private String saveToInternalStorage(Bitmap bitmapImage, int photoNumber){
         ContextWrapper cw = new ContextWrapper(getApplicationContext());
         // path to /data/data/yourapp/app_data/imageDir
@@ -375,8 +431,13 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         });
     }
 
+    // The linked list that contains the current drone position on the map
     LinkedList<Circle> circleLinkedList = new LinkedList<>();
 
+    /**
+     * Updates the circle that displays where the drone is on the map
+     * @param currentPos Position of the drone currently
+     */
     private void updateDronePosition(LatLong currentPos){
         if (circleLinkedList.size() == 0){
             circleLinkedList.add(mMap.addCircle(new CircleOptions().center(new LatLng(currentPos.getLatitude(),currentPos.getLongitude())).radius(5).strokeColor(Color.BLACK)));
@@ -387,16 +448,29 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         }
     }
 
-    // Sets the Mission
+    /**
+     * Sets the Mission
+      */
     public void setMission(){
+        // Gets the mission api
         MissionApi missionApiTest = MissionApi.getApi(drone);
+
+        // Creates a new mission
         Mission mission = new Mission();
+
+        // Changes the speed to the set speed
         ChangeSpeed changeSpeed = new ChangeSpeed();
         changeSpeed.setSpeed(speed);
+
+        // Adds the item to the mission
         mission.addMissionItem(changeSpeed);
+
+        // Sets the yaw of the drone to face TRUE north
         YawCondition yawCondition = new YawCondition();
         yawCondition.setAngle(0);
         mission.addMissionItem(yawCondition);
+
+        // Sets the waypoints for the camera positions
         int i = 2;
         for (LatLong cameraLocation :
                 survey.getCameraLocations()) {
@@ -405,16 +479,25 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
             mission.addMissionItem(i,location);
             i++;
         }
+
+        // Return to launce upon misson completion, rises 10 meters first then flys back
         ReturnToLaunch rtl = new ReturnToLaunch();
         rtl.setReturnAltitude(0.0);
         mission.addMissionItem(rtl);
         i++;
+
+        // Sets the mission
         missionApiTest.setMission(mission,true);
     }
 
+    /**
+     * Sets the gimbal
+     */
     public void setGimbal(){
         Log.d("gimbal", "attempting to start gimbal control");
         final GimbalApi gimbalApi = GimbalApi.getApi(drone);
+
+        // Sets the orientation listener
         final GimbalApi.GimbalOrientationListener orientationListener = new GimbalApi.GimbalOrientationListener() {
             @Override
             public void onGimbalOrientationUpdate( GimbalApi.GimbalOrientation orientation ) {
@@ -467,7 +550,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 TextView altitudeTextView = findViewById(R.id.currentAltitude);
                 altitudeTextView.setText("Altitude: " + String.format("%3.1f", droneAltitude.getAltitude()) + "meters");
 
-                // If the drone is within a .5 meter height of the altitude wanted start the mission
+                // If the drone is within a 1 meter height of the altitude wanted start the mission
                 if (droneAltitude.getAltitude() - altitude > -1 && hasntHappened){
                     Log.d("starting mission", "attempting");
                     hasntHappened = false;
@@ -476,7 +559,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 break;
 
             case AttributeEvent.BATTERY_UPDATED:
-                // Updates the battery left
+                // Updates the battery percentage left
                 Battery droneBattery = this.drone.getAttribute(AttributeType.BATTERY);
                 TextView droneBatteryTextView = findViewById(R.id.batteryLeft);
                 droneBatteryTextView.setText("Battery: " + Double.toString(droneBattery.getBatteryRemain()) + "%");
@@ -485,6 +568,8 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 if (droneBattery.getBatteryRemain() < 30.0){
                     alertUser("Your battery is below 30%!");
                 }
+
+                // Allows the user to take manual control of the drone
                 if (droneBattery.getBatteryRemain() <= flyHomeBatteryPercentage && !alertedOnce){
                     alertedOnce = true;
                     alertUser("Your battery is below flyHome, please quit the app and take manual control.");
@@ -501,6 +586,7 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 break;
 
             case AttributeEvent.GPS_POSITION:
+                // Updates the GPS location attribute and drone location
                 Gps gpsPos = this.drone.getAttribute(AttributeType.GPS);
                 if (gpsPos != null && gpsPos.isValid()){
                     updateDronePosition(gpsPos.getPosition());
@@ -516,17 +602,21 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
             case AttributeEvent.MISSION_ITEM_UPDATED:
                 // Takes a photo at the mission item and updates the log to show what position the drone is currently in
-                if (numberOfPhotosTaken > 1 && numberOfPhotosTaken < (waypoints.size() + 2)){
+                if (numberOfMissionSpots > 1 && numberOfMissionSpots < (waypoints.size() + 2)){
                     Log.d("photoSpot", "attemping to take photo");
                     // Gets the view from the video and captures it for processing
+
                     //Bitmap bitmap = videoView.getBitmap();
                     //saveToInternalStorage(bitmap, actualPhotosTaken);
+
                     actualPhotosTaken++;
                     TextView photosTakenTextView = findViewById(R.id.currentPhotosTaken);
                     photosTakenTextView.setText("# Of Photos Taken: " + actualPhotosTaken);
                     // TODO: Try to take photo on GoPro and the tablet
                     SoloCameraApi soloCameraApi = SoloCameraApi.getApi(this.drone);
                     soloCameraApi.takePhoto(null);
+
+                    // TODO: Needs further testing for the logging of the position of the drone and gimbal
                     // Log photo position and drone position
                     final double[] droneYaw = { 0.0 };
                     final double[] dronePitch = { 0.0 };
@@ -584,48 +674,60 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
                 }
                 Log.d("missionItem", "updated");
-                numberOfPhotosTaken++;
+                numberOfMissionSpots++;
                 break;
             default:
                 break;
         }
     }
 
+    /**
+     * Logs the drone stats
+     * @return Filewriter with all the stats
+     * @throws IOException File could not be written
+     */
     private FileWriter logDroneStats() throws IOException {
-            @SuppressLint("SimpleDateFormat") SimpleDateFormat sdf = new SimpleDateFormat("MM-dd-yyyy-H-m-s");
-            Calendar c = Calendar.getInstance();
-            String date = sdf.format(c.getTime());
-            File currentLog = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/log").concat(date).concat(".txt"));
-            Speed currentSpeed;
-            FileWriter fileWriter = new FileWriter(currentLog);
-            final Gps droneGps = drone.getAttribute(AttributeType.GPS);
-            final Altitude altitude = drone.getAttribute(AttributeType.ALTITUDE);
-            // Photo #
-            fileWriter.write("Photo #" + actualPhotosTaken + "\n");
-            // Drone Lat and Lng
-            fileWriter.write(droneGps.getPosition() + "\n");
+        // Log as the current month-day-year-hour-minute-second pattern
+        SimpleDateFormat sdf = new SimpleDateFormat("MM-dd-yyyy-H-m-s");
+        Calendar c = Calendar.getInstance();
+        String date = sdf.format(c.getTime());
+        // Sets the current log
+        File currentLog = new File(getExternalFilesDir(null).getAbsolutePath(),"Plans/".concat(planName).concat("/log").concat(date).concat(".txt"));
 
-            // Drone Altitude
-            fileWriter.write("Alt: " + altitude + "\n");
+        // Writes the current attributes
+        Speed currentSpeed;
+        FileWriter fileWriter = new FileWriter(currentLog);
+        final Gps droneGps = drone.getAttribute(AttributeType.GPS);
+        final Altitude altitude = drone.getAttribute(AttributeType.ALTITUDE);
+        // Photo #
+        fileWriter.write("Photo #" + actualPhotosTaken + "\n");
+        // Drone Lat and Lng
+        fileWriter.write(droneGps.getPosition() + "\n");
 
-            // Drone Speed
-            currentSpeed = new Speed();
-            fileWriter.write("Speed: " + Double.toString(currentSpeed.getAirSpeed()).concat("\n"));
+        // Drone Altitude
+        fileWriter.write("Alt: " + altitude + "\n");
 
-            // Drone Yaw
-            YawCondition currentYaw = new YawCondition();
-            fileWriter.write("Drone Yaw: " + currentYaw.getAngle() + "\n");
+        // Drone Speed
+        currentSpeed = new Speed();
+        fileWriter.write("Speed: " + Double.toString(currentSpeed.getAirSpeed()).concat("\n"));
 
-            // Drone Roll
-            Attitude currentAttitude = new Attitude();
-            fileWriter.write("Drone Roll: " + currentAttitude.getRoll() + "\n");
+        // Drone Yaw
+        YawCondition currentYaw = new YawCondition();
+        fileWriter.write("Drone Yaw: " + currentYaw.getAngle() + "\n");
 
-            // Drone Pitch
-            fileWriter.write("Drone Pitch: " + currentAttitude.getPitch()  + "\n");
+        // Drone Roll
+        Attitude currentAttitude = new Attitude();
+        fileWriter.write("Drone Roll: " + currentAttitude.getRoll() + "\n");
 
-            return fileWriter;
+        // Drone Pitch
+        fileWriter.write("Drone Pitch: " + currentAttitude.getPitch()  + "\n");
+
+        return fileWriter;
     }
 
+    /**
+     * Updates the arm button to show
+     */
     private void updateArmedButton() {
         Button takeoffButton = findViewById(R.id.takeoff);
         State vehicleState = drone.getAttribute(AttributeType.STATE);
@@ -633,10 +735,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         takeoffButton.setVisibility(View.VISIBLE);
     }
 
-    int numberOfPhotosTaken = 0;
-
-    int actualPhotosTaken = 0;
-
+    /**
+     * Starts the mission
+     */
     private void startMission(){
         final MissionApi missionApi = MissionApi.getApi(this.drone);
         missionApi.setMissionSpeed((float)speed,null);
@@ -665,10 +766,18 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     }
 
+    /**
+     * Shows a toast of the specified message
+     * @param message To be displayed
+     */
     protected void alertUser(String message) {
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
     }
 
+    /**
+     * Updates the connected button
+     * @param isConnected Button information
+     */
     protected void updateConnectedButton(Boolean isConnected) {
         Button connectButton = findViewById(R.id.btnConnect);
         if (isConnected) {
@@ -678,6 +787,9 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
         }
     }
 
+    /**
+     * Starts the connection to the drone
+     */
     public void startConnect() {
         Log.d("drone", "trying to connect");
         if (this.drone.isConnected()) {
@@ -690,11 +802,10 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
 
     }
 
-    GoogleMap mMap;
-
     @Override
     public void onMapReady( GoogleMap googleMap ) {
 
+        // Inits the googlemap
         mMap = googleMap;
 
         // Sets the map type to satellite
@@ -728,21 +839,23 @@ public class GCS_3DR_Activity extends AppCompatActivity implements DroneListener
                 }
             }
         });
+
+        // Sets the polyline list that connects the camera positions
         LinkedList<LatLng> polyLineList = new LinkedList<>();
+
+        // Sets the camera locations
         List<LatLong> cameraLocations = survey.getCameraLocations();
         Log.d("cameraLocationSize", String.valueOf(cameraLocations.size()));
+
+        // Adds the markers for the photo locations to the map
         for (Waypoint waypoint:
              waypoints) {
             LatLng point = new LatLng(waypoint.getCoordinate().getLatitude(),waypoint.getCoordinate().getLongitude());
             polyLineList.add(point);
             mMap.addMarker(new MarkerOptions().position(point));
         }
-        for (LatLong camera :
-                cameraLocations) {
-            LatLng point = new LatLng(camera.getLatitude(),camera.getLongitude());
-            polyLineList.add(point);
-            mMap.addMarker(new MarkerOptions().position(point));
-        }
+
+        // Draws the polyline of between the camera locations on the map
         mMap.addPolyline(new PolylineOptions().addAll(polyLineList));
     }
 }

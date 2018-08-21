@@ -1,6 +1,5 @@
 package daslab.com.fieldmonitoringv2;
 
-import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
@@ -12,11 +11,19 @@ import android.widget.TextView;
 
 import java.util.List;
 
+/**
+ * Fills a recycler view with all of the plans
+ */
 class PlanAdapter extends RecyclerView.Adapter<PlanAdapter.PlanViewHolder> {
 
     private List<String> planList;
 
-    PlanAdapter( List<String> plans, Context applicationContext ) {
+    /**
+     *
+     * @param plans A list of strings containing the plan names
+     *
+     */
+    PlanAdapter( List<String> plans ) {
         this.planList = plans;
     }
 
